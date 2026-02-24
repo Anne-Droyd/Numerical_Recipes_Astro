@@ -87,7 +87,7 @@ def bisection(point_request:float,
 def linear_interpolation(point_request:float,
                          left_point:tuple[float,float],
                          right_point:tuple[float,float]
-                         ) -> np.ndarray:
+                         ) -> np.ndarray[float,float]:
     assert left_point[0] != right_point[0], ('Can\'t be monotonic, x values required to be different')
     fraction = (right_point[1] - left_point[1])/(right_point[0] - left_point[0])
     interpolated_value = fraction*(point_request - left_point[0]) + left_point[1]
@@ -96,51 +96,86 @@ def linear_interpolation(point_request:float,
 def lagrange_polynomial(point_request:float,
                         degree_of_polynomial:int,
                         data:np.ndarray
-                        ) -> np.ndarray:
+                        ) -> np.ndarray[float,float]:
     assert degree_of_polynomial <= 5, ('Degree of polynomial should be less than or equal to 5')
     assert degree_of_polynomial > 0, ('Degree of polynomial must be strictly postitive and greater than 0')
 
-    nearby_data = bisection(point_request,data,math.floor(degree_of_polynomial/2))
+    nearby_data, edge_case = bisection(point_request,data,math.floor(degree_of_polynomial/2))
 
     interpolated_value = 0
 
     for i in range(degree_of_polynomial+1):
-        products = nearby_data[1][i]
+        products = nearby_data[i,1]
         for j in range(degree_of_polynomial+1):
             if j == i:
                 continue
-            product = (point_request - nearby_data[0][j])/(nearby_data[0][i] - nearby_data[0][j])
+            product = (point_request - nearby_data[j,0])/(nearby_data[i,0] - nearby_data[j,0])
             products *=product
 
         interpolated_value += products
+    #
+    # plt.scatter(nearby_data[:,0],nearby_data[:,1])
+    # plt.scatter(point_request,interpolated_value)
+    # plt.show()
 
     return np.array(point_request, interpolated_value)
 
 def nevilles_algorithm(point_request:float,
                        M_points_around:int,
                        data:np.ndarray
-                       ) -> tuple[float,float]:
+                       ) -> np.ndarray[float,float]:
     nearby_samples, edge_case = bisection(point_request,data,M_points_around)
 
     #save only ys
     p_i = nearby_samples[:,1].copy()
 
     # tried to follow the slides perfectly, used https://github.com/gisalgs/geom/blob/master/neville.py
-    # to adjust my indices
+    # to adjust my indices and sums
     for k in range(1,len(p_i)):
-
         for i in range(len(p_i)-k):
             j= i + k
             top_1 = (point_request - nearby_samples[j,0])*p_i[i]
             top_2 = (nearby_samples[i,0] - point_request)*p_i[i+1]
             bottom = 1/(nearby_samples[i,0]-nearby_samples[j,0])
             p_i[i] = (top_1+top_2)*bottom
-    # plt.scatter(nearby_samples[:,0],nearby_samples[:,1])
-    # plt.scatter(point_request,p_i[0])
+
+    # plt.scatter(nearby_samples[:, 0], nearby_samples[:, 1])
+    # plt.scatter(point_request, p_i[0])
     # plt.show()
+    return np.array(point_request,p_i[0])
 
+    # heres what I had before not super different just wasn't summing correct
+    # def nevilles_algorithm(point_request:float,
+    #                        M_points_around:int,
+    #                        data:np.ndarray
+    #                        ) -> tuple[float,float]:
+    #     nearby_samples, edge_case = bisection(point_request,data,M_points_around)
+    #     print(nearby_samples)
+    #     #save only ys
+    #     p_i = nearby_samples[:,1].copy()
+    #     #find the closest pair or single x value
+    #     nearest_pair, _ = bisection(point_request,data)
+    #     if len(nearest_pair[:,0]) > 1:
+    #         closest = check_closest(nearest_pair,point_request)
+    #         initial_solution = closest[1]
+    #     else:
+    #         initial_solution = nearest_pair[0,1]
+    #
+    #     for k in range(1,len(p_i)):
+    #
+    #         print(p_i)
+    #         for i in range(0,len(p_i)-k):
+    #             j= i + k
+    #             top_1 = (nearby_samples[j,0]-point_request)*p_i[i]
+    #             top_2 = (point_request-nearby_samples[i,0])*p_i[j]
+    #             bottom = 1/(nearby_samples[j,0]-nearby_samples[i,0])
+    #             p_i[i] = (top_1+top_2)*bottom
+    #     print(p_i)
+    #     print(point_request)
+    #     print(nearby_samples)
+    #     print(p_i)
+    #
 
-#
 # def cubic_spline():
 #
 #
@@ -165,4 +200,5 @@ def make_random_data_x_y(length:int) -> tuple[np.ndarray,np.ndarray]:
 
 x,y,data = make_random_data_x_y(10)
 
+lagrange_polynomial(4.5,2,data)
 nevilles_algorithm(4.5,2,data)
