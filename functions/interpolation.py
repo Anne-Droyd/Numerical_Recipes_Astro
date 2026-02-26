@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import matplotlib.pyplot as plt
 
 def check_closest(pair:np.ndarray,
                   point:float
@@ -17,12 +18,16 @@ def bisection(point_request:float,
               ) -> tuple[np.array,bool]:
 
     edge_missing = False
-    left_index = 0
-    right_index = len(data) - 1
     try:
-        left_edge = data[left_index,0]
-        right_edge = data[right_index,0]
+        left_index = 0
+        right_index = len(data[0]) - 1
+        left_edge = data[0,left_index]
+        right_edge = data[0,right_index]
     except:
+
+        left_index = 0
+        right_index = len(data) - 1
+
         left_edge = data[left_index]
         right_edge = data[right_index]
 
@@ -36,9 +41,9 @@ def bisection(point_request:float,
 
         # assume left dominant, update edges
         try:
-            if point_request <= data[middle_index,0]:
+            if point_request <= data[0,middle_index]:
                 right_index = middle_index
-            elif point_request > data[middle_index,0]:
+            elif point_request > data[0,middle_index]:
                 left_index = middle_index
         except:
             if point_request <= data[middle_index]:
@@ -52,9 +57,9 @@ def bisection(point_request:float,
 
             #check if point falls on one of the edges, if so both points the same
             try:
-                if point_request == data[left_index,0]:
+                if point_request == data[0,left_index]:
                     right_index = left_index
-                elif point_request == data[right_index,0]:
+                elif point_request == data[0,right_index]:
                     left_index = right_index
             except:
                 if point_request == data[left_index]:
@@ -63,12 +68,15 @@ def bisection(point_request:float,
                     left_index = right_index
 
     #if no boundary condition return edges
+
+
     if points_around is None:
 
         return data[left_index:right_index+1], edge_missing
 
     #else return list with boundary indices included
     else:
+
         assert points_around > 0, ('Points around is negative, required to be stritcly postitive')
         left_bound = left_index - points_around
         right_bound = right_index + points_around
@@ -92,30 +100,31 @@ def linear_interpolation(point_request:float,
 
 def lagrange_polynomial(point_request:float,
                         degree_of_polynomial:int,
-                        data:np.ndarray
+                        full_data:np.ndarray
                         ) -> np.ndarray[float,float]:
-    assert degree_of_polynomial <= 5, ('Degree of polynomial should be less than or equal to 5')
+    # assert degree_of_polynomial <= 5, ('Degree of polynomial should be less than or equal to 5')
     assert degree_of_polynomial > 0, ('Degree of polynomial must be strictly postitive and greater than 0')
 
-    nearby_data, edge_case = bisection(point_request,data,math.floor(degree_of_polynomial/2))
+    data = full_data.copy()
+
+    nearby_samples, edge_case = bisection(point_request,data,40)
+    # if edge_case:
+    #     return np.array([point_request, None])
+    nearby_data = nearby_samples.copy()
 
     interpolated_value = 0
 
     for i in range(degree_of_polynomial+1):
-        products = nearby_data[i,1]
+        products = nearby_data[1,i]
         for j in range(degree_of_polynomial+1):
             if j == i:
                 continue
-            product = (point_request - nearby_data[j,0])/(nearby_data[i,0] - nearby_data[j,0])
+            product = (point_request - nearby_data[0,j])/(nearby_data[0,i] - nearby_data[0,j])
             products *=product
 
         interpolated_value += products
-    #
-    # plt.scatter(nearby_data[:,0],nearby_data[:,1])
-    # plt.scatter(point_request,interpolated_value)
-    # plt.show()
 
-    return np.array(point_request, interpolated_value)
+    return np.array([point_request, interpolated_value])
 
 def nevilles_algorithm(point_request:float,
                        M_points_around:int,
@@ -125,22 +134,19 @@ def nevilles_algorithm(point_request:float,
     nearby_samples, edge_case = bisection(point_request,data,M_points_around)
 
     #save only ys
-    p_i = nearby_samples[:,1].copy()
+    p_i = nearby_samples[1,:].copy()
 
     # tried to follow the slides perfectly, used https://github.com/gisalgs/geom/blob/master/neville.py
     # to adjust my indices and sums
     for k in range(1,len(p_i)):
         for i in range(len(p_i)-k):
             j= i + k
-            top_1 = (point_request - nearby_samples[j,0])*p_i[i]
-            top_2 = (nearby_samples[i,0] - point_request)*p_i[i+1]
-            bottom = 1/(nearby_samples[i,0]-nearby_samples[j,0])
+            top_1 = (point_request - nearby_samples[0,j])*p_i[i]
+            top_2 = (nearby_samples[0,i] - point_request)*p_i[i+1]
+            bottom = 1/(nearby_samples[0,i]-nearby_samples[0,j])
             p_i[i] = (top_1+top_2)*bottom
 
-    # plt.scatter(nearby_samples[:, 0], nearby_samples[:, 1])
-    # plt.scatter(point_request, p_i[0])
-    # plt.show()
-    return np.array(point_request,p_i[0])
+    return np.array([point_request,p_i[0]])
 
     # heres what I had before not super different just wasn't summing correct
     # def nevilles_algorithm(point_request:float,
@@ -173,6 +179,9 @@ def nevilles_algorithm(point_request:float,
     #     print(nearby_samples)
     #     print(p_i)
     #
+
+def cubic_spline():
+
 
 #todo
 # def cubic_spline():

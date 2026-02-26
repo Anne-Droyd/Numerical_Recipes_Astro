@@ -46,10 +46,33 @@ def question_2() -> tuple[pd.DataFrame]:
     vandermonde = math_functions.get_vandermonde_matrix(x,y)
 
     A = crouts_algorithm(vandermonde)
-    M=19
-    for point_index in range(0+25,len(x_points_to_interpolate)-25):
-        interpolated_values = interpolation.nevilles_algorithm(x_points_to_interpolate[point_index],M,np.array([x,y]))
+    M=20
+    nevilles    = []
+    lagrange    = []
+    linear      = []
+    x_points = []
+    x_y = np.array([x, y])
 
+    #need to split this up for timing purposes
+    for point_index in range(0,len(x_points_to_interpolate)):
+
+        point_request = x_points_to_interpolate[point_index]
+
+        interpolated_values_nev     = interpolation.nevilles_algorithm(point_request,M,x_y)
+        interpolated_values_lag     = interpolation.lagrange_polynomial(point_request,19,x_y)
+        interpolated_cubic_spline   = interpolation.
+        interpolated_akima_spline   = interpolation.
+
+        lagrange.append(interpolated_values_lag[1])
+        nevilles.append(interpolated_values_nev[1])
+        x_points.append(x_points_to_interpolate[point_index])
+
+    plt.scatter(x_points,nevilles, marker = '^', alpha = 0.4, label = 'nevilles')
+    plt.scatter(x_points,lagrange, marker = 'o', alpha = 0.2, label = 'lagrange')
+    plt.ylim(-200,200)
+    plt.scatter(x,y,label = 'true values')
+    plt.legend()
+    plt.show()
 
 
 question_1_results = question_1()
@@ -61,3 +84,9 @@ print('------------------------------------------------------')
 print('\n')
 
 question_2()
+print('\n')
+print('Question 2 values and results')
+print('------------------------------------------------------')
+
+print('------------------------------------------------------')
+print('\n')
