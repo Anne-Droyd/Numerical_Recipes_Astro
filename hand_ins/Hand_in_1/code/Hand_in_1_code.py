@@ -1,7 +1,6 @@
 import numpy as np
 import timeit
 import math
-import urllib.request as urlreq
 
 import pandas as pd
 

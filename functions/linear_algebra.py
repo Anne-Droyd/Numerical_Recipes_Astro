@@ -66,7 +66,7 @@ def crouts_algorithm(matrix_A):
             if i == 0:
                 B[i,j] = A[i,j]
             else:
-                # checked the result of this against so I think its right
+                # checked the result of this against this link, so I think its right
                 # www.emathhelp.net/calculators/linear-algebra/lu-decomposition-calculator
                 if i <= j:
                     B[i,j] = A[i,j] - np.sum(B[i,:j]*B[:j,j])

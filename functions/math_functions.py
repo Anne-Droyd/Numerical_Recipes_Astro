@@ -33,9 +33,7 @@ def poisson_distribution(lam:np.float32|np.int32,
         return np.exp(np.float32(p))
 
 def get_vandermonde_matrix(x,y):
-    #pretty confident this is correct
-    #going to have to create the vandermonde matrix from the xi as j is treated as an exponent here.
-    #Vandermonde matrix has to be square so just creating a square matrix of 0s
+    # taken from last years work
     V_m = np.zeros((len(x),len(x)))
     for j in range(V_m.shape[1]):
         for i in range(V_m.shape[0]):
