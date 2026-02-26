@@ -60,7 +60,7 @@ def question_2() -> tuple[pd.DataFrame]:
 
         interpolated_values_nev     = interpolation.nevilles_algorithm(point_request,M,x_y)
         interpolated_values_lag     = interpolation.lagrange_polynomial(point_request,19,x_y)
-        interpolated_cubic_spline   = interpolation.
+        interpolated_cubic_spline   = interpolation.cubic_spline(point_request)
         interpolated_akima_spline   = interpolation.
 
         lagrange.append(interpolated_values_lag[1])

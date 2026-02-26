@@ -180,7 +180,7 @@ def nevilles_algorithm(point_request:float,
     #     print(p_i)
     #
 
-def cubic_spline():
+def cubic_spline(point_request:float):
 
 
 #todo
