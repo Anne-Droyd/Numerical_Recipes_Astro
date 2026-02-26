@@ -1,8 +1,5 @@
 import numpy as np
-import random #must remove this
-import pandas as pd
 import math
-import matplotlib.pyplot as plt
 
 def check_closest(pair:np.ndarray,
                   point:float
@@ -124,6 +121,7 @@ def nevilles_algorithm(point_request:float,
                        M_points_around:int,
                        data:np.ndarray
                        ) -> np.ndarray[float,float]:
+
     nearby_samples, edge_case = bisection(point_request,data,M_points_around)
 
     #save only ys
@@ -176,29 +174,10 @@ def nevilles_algorithm(point_request:float,
     #     print(p_i)
     #
 
+#todo
 # def cubic_spline():
-#
-#
 # def akima_spline():
-#
-#
 # def bilinear_interpolation_1():
-#
-#
 # def bilinear_interpolation_2():
-#
-#
 # def bicubic_interpolation():
 
-
-#this is strictly for testing purposes must remove
-def make_random_data_x_y(length:int) -> tuple[np.ndarray,np.ndarray]:
-    x = np.arange(length, dtype=float)
-    y = np.random.uniform(0, 10, size=length)
-    data = np.column_stack((x,y))
-    return x,y,data
-
-x,y,data = make_random_data_x_y(10)
-
-lagrange_polynomial(4.5,2,data)
-nevilles_algorithm(4.5,2,data)
