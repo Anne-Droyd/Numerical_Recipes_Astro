@@ -50,6 +50,8 @@ def question_2() -> tuple[pd.DataFrame]:
     nevilles    = []
     lagrange    = []
     linear      = []
+    cubic       = []
+    akima       = []
     x_points = []
     x_y = np.array([x, y])
 
@@ -58,15 +60,20 @@ def question_2() -> tuple[pd.DataFrame]:
 
         point_request = x_points_to_interpolate[point_index]
 
+        interpolated_values_linear  = interpolation.linear_interpolation(point_request,x_y)
         interpolated_values_nev     = interpolation.nevilles_algorithm(point_request,M,x_y)
         interpolated_values_lag     = interpolation.lagrange_polynomial(point_request,19,x_y)
         interpolated_cubic_spline   = interpolation.cubic_spline(point_request)
         interpolated_akima_spline   = interpolation.
 
-        lagrange.append(interpolated_values_lag[1])
+        linear.append(interpolated_values_linear[1])
         nevilles.append(interpolated_values_nev[1])
+        lagrange.append(interpolated_values_lag[1])
+        cubic.append(interpolated_cubic_spline[1])
+        akima.append(interpolated_akima_spline[1])
         x_points.append(x_points_to_interpolate[point_index])
 
+    plt.scatter(x_points,linear, marker = 'o', alpha = 0.4, label = 'linear')
     plt.scatter(x_points,nevilles, marker = '^', alpha = 0.4, label = 'nevilles')
     plt.scatter(x_points,lagrange, marker = 'o', alpha = 0.2, label = 'lagrange')
     plt.ylim(-200,200)

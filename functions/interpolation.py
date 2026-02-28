@@ -1,3 +1,5 @@
+from time import monotonic
+
 import numpy as np
 import math
 import matplotlib.pyplot as plt
@@ -13,10 +15,11 @@ def check_closest(pair:np.ndarray,
 
 #handles 1d or 2d
 def bisection(point_request:float,
-              data:np.ndarray,
+              data_input:np.ndarray,
               points_around:int|None = None #this is value left/right ie 2 would be n-2 n-1 n n+1 n+2
               ) -> tuple[np.array,bool]:
 
+    data = data_input.copy()
     edge_missing = False
     try:
         left_index = 0
@@ -71,8 +74,7 @@ def bisection(point_request:float,
 
 
     if points_around is None:
-
-        return data[left_index:right_index+1], edge_missing
+        return np.array([data[0][left_index:right_index+1],data[1][left_index:right_index+1]]), edge_missing
 
     #else return list with boundary indices included
     else:
@@ -83,20 +85,25 @@ def bisection(point_request:float,
         if left_bound < 0:
             left_bound = 0
             edge_missing = True
-        if right_bound > len(data)-1:
-            right_bound = len(data)-1
+        if right_bound > len(data[0])-1:
+            right_bound = len(data[0])-1
             edge_missing = True
 
-        return data[left_bound:right_bound+1], edge_missing
+        return np.array([data[0][left_bound:right_bound+1],data[1][left_bound:right_bound+1]]), edge_missing
 
 def linear_interpolation(point_request:float,
-                         left_point:tuple[float,float],
-                         right_point:tuple[float,float]
+                         data = np.ndarray,
                          ) -> np.ndarray[float,float]:
-    assert left_point[0] != right_point[0], ('Can\'t be monotonic, x values required to be different')
+
+    points, egde = bisection(point_request,data)
+    if points.shape[1] == 1:
+        return np.array([points[0,0],points[1,0]])
+    else:
+        right_point = points[:,0]
+        left_point = points[:,1]
     fraction = (right_point[1] - left_point[1])/(right_point[0] - left_point[0])
     interpolated_value = fraction*(point_request - left_point[0]) + left_point[1]
-    return np.array(point_request,interpolated_value)
+    return np.array([point_request,interpolated_value])
 
 def lagrange_polynomial(point_request:float,
                         degree_of_polynomial:int,
@@ -111,7 +118,6 @@ def lagrange_polynomial(point_request:float,
     # if edge_case:
     #     return np.array([point_request, None])
     nearby_data = nearby_samples.copy()
-
     interpolated_value = 0
 
     for i in range(degree_of_polynomial+1):
