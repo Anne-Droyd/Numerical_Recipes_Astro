@@ -1,17 +1,6 @@
-from time import monotonic
-
 import numpy as np
 import math
-import matplotlib.pyplot as plt
-
-def check_closest(pair:np.ndarray,
-                  point:float
-                  ) -> np.ndarray:
-    low,high = pair[0,0],pair[1,0]
-    if (point - low) > (high - point):
-        return np.array(pair[1])
-    else:
-        return np.array(pair[0])
+from functions import linear_algebra as la
 
 #handles 1d or 2d
 def bisection(point_request:float,
@@ -138,7 +127,6 @@ def nevilles_algorithm(point_request:float,
                        ) -> np.ndarray[float,float]:
 
     nearby_samples, edge_case = bisection(point_request,data,M_points_around)
-
     #save only ys
     p_i = nearby_samples[1,:].copy()
 
@@ -186,8 +174,11 @@ def nevilles_algorithm(point_request:float,
     #     print(p_i)
     #
 
-def cubic_spline(point_request:float):
-
+def cubic_spline(point_request:float,
+                 data:np.ndarray
+                 ) -> np.ndarray[float,float]:
+    h=0
+    # requires LA, do later
 
 #todo
 # def cubic_spline():

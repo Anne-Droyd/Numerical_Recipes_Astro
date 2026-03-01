@@ -32,11 +32,23 @@ def poisson_distribution(lam:np.float32|np.int32,
         p = k * math.log(lam) - lam - log_factorial(k)
         return np.exp(np.float32(p))
 
-def get_vandermonde_matrix(x,y):
+def get_vandermonde_matrix(x):
     # taken from last years work
     V_m = np.zeros((len(x),len(x)))
     for j in range(V_m.shape[1]):
         for i in range(V_m.shape[0]):
             V_m[i,j] = x[i]**j
-
     return V_m
+
+def get_y(x,c,n):
+    #is this wrong?
+    #this seems fine...
+    new_x = np.linspace(x[0],x[-1],n)
+    new_y = np.zeros(len(new_x))
+
+    for i in range(len(new_x)):
+        total = 0
+        for j in range(c.shape[0]):
+            total+=c[j]*(new_x[i]**j)
+        new_y[i]=total
+    return new_y
