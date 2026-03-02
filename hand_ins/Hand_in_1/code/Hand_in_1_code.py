@@ -88,8 +88,6 @@ def question_2() -> tuple[pd.DataFrame]:
     nevilles    = []
     lagrange    = []
     linear      = []
-    cubic       = []
-    akima       = []
     x_points = []
     x_y = np.array([x, y])
 
@@ -111,13 +109,10 @@ def question_2() -> tuple[pd.DataFrame]:
         interpolated_values_nev     = interpolation.nevilles_algorithm(point_request,M,x_y)
         interpolated_values_lag     = interpolation.lagrange_polynomial(point_request,19,x_y)
         interpolated_cubic_spline   = interpolation.cubic_spline(point_request,x_y)
-        # interpolated_akima_spline   = interpolation.
 
         linear.append(interpolated_values_linear[1])
         nevilles.append(interpolated_values_nev[1])
         lagrange.append(interpolated_values_lag[1])
-        # cubic.append(interpolated_cubic_spline[1])
-        # akima.append(interpolated_akima_spline[1])
         x_points.append(x_points_to_interpolate[point_index])
 
 
@@ -139,6 +134,7 @@ def question_2() -> tuple[pd.DataFrame]:
     c_1, y_check = LU_10_iter(vandermonde, x, y,20)
     diff_10th = abs(y_check - y)
 
+    # plotting
     fig, axes = plt.subplots(2,1)
     axes = axes.flatten()
     axes[0].scatter(x_points,yyy, marker = 'o', alpha = 0.4, label = '10th')
@@ -147,6 +143,7 @@ def question_2() -> tuple[pd.DataFrame]:
     axes[0].scatter(x_points,nevilles, marker = '^', alpha = 0.4, label = 'nevilles')
     axes[0].scatter(x_points,lagrange, marker = 'o', alpha = 0.2, label = 'lagrange')
     axes[0].set_ylim(-200,200)
+    axes[0].set_title('Interpolated values')
     axes[0].scatter(x,y,label = 'true values')
     axes[0].legend()
 
@@ -154,9 +151,14 @@ def question_2() -> tuple[pd.DataFrame]:
     axes[1].plot(x,diff_1st ,marker = '^', alpha = 0.4, label = '1st')
     axes[1].plot(x,diff_10th, marker = 'o', alpha = 0.4, label = '10th')
     axes[1].set_yscale('log')
+    axes[1].set_title('Error in log scale')
+    axes[1].set_ylabel('|$y_i$ - y|')
     axes[1].legend()
+    fig.suptitle('Results')
+    plt.tight_layout()
     plt.savefig(os.path.join(plots_dir, "results.png"))
 
+    #saving results
     np.savetxt(os.path.join(data_dir, 'c_1_iter.csv'), c, delimiter=',')
     np.savetxt(os.path.join(data_dir, 'c_10_iter.csv'), c_1, delimiter=',')
     np.savetxt(os.path.join(data_dir, '1_iter_time.txt'), [elapsed_1_iter], delimiter=',')
