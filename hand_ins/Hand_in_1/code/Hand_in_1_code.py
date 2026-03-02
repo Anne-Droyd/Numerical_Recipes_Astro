@@ -67,7 +67,6 @@ def question_2() -> tuple[pd.DataFrame]:
         z = forward_sub(L1,y1)
         c_1 = backward_sub(U1,z)
     yyy = math_functions.get_y(x,c_1,1001)
-    print(yyy)
     M=20 #change to 3/5/8 for smooth function
     nevilles    = []
     lagrange    = []
@@ -95,20 +94,33 @@ def question_2() -> tuple[pd.DataFrame]:
         # akima.append(interpolated_akima_spline[1])
         x_points.append(x_points_to_interpolate[point_index])
 
+
+    lagrange = np.array(lagrange)
+    linear = np.array(linear)
+    nevilles = np.array(nevilles)
+
+    diff_linear = lagrange-linear
+    diff_nev = lagrange-nevilles
+    diff_1st = lagrange-ys
+    diff_10th = lagrange-yyy
     fig, axes = plt.subplots(2,1)
     axes = axes.flatten()
-    axes[0].scatter(x_points,yyy, marker = 'o', alpha = 0.4, label = 'yyy')
-    axes[0].scatter(x_points,ys, marker = '^', alpha = 0.4, label = 'ys')
-    # axes[0].scatter(x_points,linear, marker = 'o', alpha = 0.4, label = 'linear')
-    # axes[0].scatter(x_points,nevilles, marker = '^', alpha = 0.4, label = 'nevilles')
-    # axes[0].scatter(x_points,lagrange, marker = 'o', alpha = 0.2, label = 'lagrange')
+    axes[0].scatter(x_points,yyy, marker = 'o', alpha = 0.4, label = '10th')
+    axes[0].scatter(x_points,ys, marker = '^', alpha = 0.4, label = '1st')
+    axes[0].scatter(x_points,linear, marker = 'o', alpha = 0.4, label = 'linear')
+    axes[0].scatter(x_points,nevilles, marker = '^', alpha = 0.4, label = 'nevilles')
+    axes[0].scatter(x_points,lagrange, marker = 'o', alpha = 0.2, label = 'lagrange')
     axes[0].set_ylim(-200,200)
     axes[0].scatter(x,y,label = 'true values')
-
+    axes[0].legend()
 
     # axes[1].plt()
-
-    fig.legend()
+    axes[1].scatter(x_points,diff_linear, marker = 'o', alpha = 0.4, label = 'linear')
+    axes[1].scatter(x_points,diff_nev, marker = '^', alpha = 0.4, label = 'nevilles')
+    axes[1].scatter(x_points,diff_1st ,marker = '^', alpha = 0.4, label = '1st')
+    axes[1].scatter(x_points,diff_10th, marker = 'o', alpha = 0.4, label = '10th')
+    axes[1].set_ylim(-1,200)
+    axes[1].legend()
     plt.show()
 
 
