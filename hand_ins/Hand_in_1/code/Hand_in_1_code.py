@@ -1,10 +1,9 @@
-import numpy as np
-import time
-import os
 
+import os
+import time
+import numpy as np
 import pandas as pd
 
-from pathlib import Path
 from functions import interpolation
 from functions import math_functions
 from functions import linear_algebra as la
@@ -19,9 +18,8 @@ plots_dir = os.path.join(script_dir, "../plots")
 os.makedirs(plots_dir, exist_ok=True)  # just in case
 
 def import_data():
-    current_dir = Path(__file__).resolve().parent
 
-    data_path = current_dir.parent / "data" / "Vandermonde.txt"
+    data_path = os.path.join(data_dir, "Vandermonde.txt")
     data=pd.DataFrame(np.genfromtxt(data_path,comments='#',dtype=np.float64),columns=['x','y'])
     return data
 
