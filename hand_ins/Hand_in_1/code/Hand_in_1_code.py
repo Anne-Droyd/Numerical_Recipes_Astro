@@ -14,11 +14,12 @@ from functions.linear_algebra import forward_sub, backward_sub
 
 
 def import_data():
-    url = 'https://home.strw.leidenuniv.nl/~daalen/Handin_files/Vandermonde.txt'
+    url = 'hand_ins/Hand_in_1/data/Vandermonde.txt'
     data=pd.DataFrame(np.genfromtxt(url,comments='#',dtype=np.float64),columns=['x','y'])
     return data
 
-
+def blah():
+    h=0
 
 def question_1() -> pd.DataFrame:
     question_1_values = np.array([[1,0],[5,10],[3,21],[2.6,40],[100,5],[101,200]],dtype=np.float32)
@@ -42,30 +43,18 @@ def question_1() -> pd.DataFrame:
 def question_2() -> tuple[pd.DataFrame]:
     data = import_data()
     x,y = np.array(data['x']),np.array(data['y'])
-
     x_points_to_interpolate = np.linspace(x[0],x[-1],1001)
-
     vandermonde = math_functions.get_vandermonde_matrix(x)
 
-    L,U = la.crout(vandermonde)
     A = la.crouts_algorithm(vandermonde)
-    L1 = L.copy()
-    U1 = U.copy()
     y1 = y.copy()
-
     out = la.forward_sub(A,y1)
     c = la.backward_sub(A,out)
-    for ans in c:
-        print(ans)
-
     ys = math_functions.get_y(x,c,1001)
 
-    y1 = y.copy()
-    L1 = L.copy()
-    U1 = U.copy()
     for n in range(0,10):
-        z = forward_sub(L1,y1)
-        c_1 = backward_sub(U1,z)
+        z = forward_sub(A,y1)
+        c_1 = backward_sub(A,z)
     yyy = math_functions.get_y(x,c_1,1001)
     M=20 #change to 3/5/8 for smooth function
     nevilles    = []
@@ -100,9 +89,9 @@ def question_2() -> tuple[pd.DataFrame]:
     nevilles = np.array(nevilles)
 
     diff_linear = lagrange-linear
-    diff_nev = lagrange-nevilles
-    diff_1st = lagrange-ys
-    diff_10th = lagrange-yyy
+    diff_nev = abs(lagrange-nevilles)
+    diff_1st = abs(lagrange-ys)
+    diff_10th = abs(lagrange-yyy)
     fig, axes = plt.subplots(2,1)
     axes = axes.flatten()
     axes[0].scatter(x_points,yyy, marker = 'o', alpha = 0.4, label = '10th')
@@ -114,15 +103,15 @@ def question_2() -> tuple[pd.DataFrame]:
     axes[0].scatter(x,y,label = 'true values')
     axes[0].legend()
 
-    # axes[1].plt()
     axes[1].scatter(x_points,diff_linear, marker = 'o', alpha = 0.4, label = 'linear')
     axes[1].scatter(x_points,diff_nev, marker = '^', alpha = 0.4, label = 'nevilles')
     axes[1].scatter(x_points,diff_1st ,marker = '^', alpha = 0.4, label = '1st')
     axes[1].scatter(x_points,diff_10th, marker = 'o', alpha = 0.4, label = '10th')
-    axes[1].set_ylim(-1,200)
+    axes[1].set_yscale('log')
     axes[1].legend()
     plt.show()
 
+    return c, c_1
 
 question_1_results = question_1()
 print('\n')
@@ -136,6 +125,8 @@ question_2_results = question_2()
 print('\n')
 print('Question 2 values and results')
 print('------------------------------------------------------')
-print(question_2_results)
+print(question_2_results[0])
+print('\n')
+print(question_2_results[1])
 print('------------------------------------------------------')
 print('\n')
