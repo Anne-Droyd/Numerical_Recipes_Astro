@@ -218,13 +218,392 @@ def question_2() -> tuple[pd.DataFrame]:
 
 \end{lstlisting}
 
+We call multiple functions here, so we will examine what they do. The first is the import data function which is rather simple, we just import the data as a pandas DataFrame from a location on the repo.
+
 \begin{lstlisting}[language=Python]
+def import_data():
+
+    data_path = os.path.join(data_dir, "Vandermonde.txt")
+    data=pd.DataFrame(np.genfromtxt(data_path,comments='#',dtype=np.float64),columns=['x','y'])
+    return data
+\end{lstlisting}
+
+We then get the Vandermonde Matrix, performs an implementation of eq. \ref{eq: vandermonde}, and was taken from my work last year.
+
+\begin{lstlisting}[language=Python]
+def get_vandermonde_matrix(x):
+    # taken from last years work
+    V_m = np.zeros((len(x),len(x)))
+    for j in range(V_m.shape[1]):
+        for i in range(V_m.shape[0]):
+            V_m[i,j] = x[i]**j
+    return V_m
+\end{lstlisting}
+
+We then implement the multiple iterations of the LU decomposition. Unfortunately I did not quite know how to perform this decomposition recursively or have time to ask for help, so the 10 iteration attempt is what I have tried to do to minimise error by getting the residual error in the y calculation, and adjusting the c vector with this. These functions call upon the linear algebra package and utilises the Crout's algorithm, forward and backward substitution, and the math function get y which is my old version of what is shown in LU 10 iters.
+
+\begin{lstlisting}[language=Python]
+def LU_1_iter(vandermonde,x,y,points = 1001):
+    A = la.crouts_algorithm(vandermonde)
+    y1 = y.copy()
+    out = la.forward_sub(A, y1)
+    c = la.backward_sub(A, out)
+    y = math_functions.get_y(x,c,points)
+    return c, y
+
+def LU_10_iter(vandermonde,x,y,points = 1001):
+    y1 = y.copy()
+    A = la.crouts_algorithm(vandermonde)
+    z = la.forward_sub(A, y1)
+    c = la.backward_sub(A, z)
+
+    for _ in range(100):
+        residual = y1 - vandermonde @ c
+        z = la.forward_sub(A, residual)
+        delta = la.backward_sub(A, z)
+        c += delta
+    y = math_functions.get_y(x,c,points)
+    return c, y
+\end{lstlisting}
+
+Crout's algorithm is implemented from my understanding of the lecture notes, I found that my first interpretation did not achieve good benchmark results for the 19 degree polynomial, but did obtain good benchmark results on small 3x3 matrices. So I tried a new attempt, in which I split up my j loop to handle the top and bottom triangular matrices separately, with the bottom loop handling the $\alpha$ matrix and the top loop handling the $\beta$ matrix. Admittedly, I should have overwrote A, however I was worried about requiring the information later. I tired to avoid a third loop by utilizing smart indexing which I believe has worked as intended but I will need to research this further and ask questions about the most optimal solution.
+
+\newpage
+\begin{lstlisting}[language=Python]
+def crouts_algorithm(matrix_A):
+
+    A = matrix_A.copy()
+    B = np.zeros((len(A),len(A.T)))
+    if len(A.T) != len(A):
+        raise Warning('Matrix is not square')
+
+    for i in range(len(A)):
+        # for j in range(len(A.T)):
+        #     if i == 0:
+        #         B[i,j] = A[i,j]
+        for j in range(i,A.shape[0]):
+            B[j,i] = A[j,i]-np.sum(B[j,:i]*B[:i,i])
+        for j in range(i+1,A.shape[0]):
+            B[i,j] = (1/B[i,i])*(A[i,j]-np.sum(B[i,:i]*B[:i,j]))
+
+    #B is the LU decomp
+    return B
+
+def crouts_algorithm_first(matrix_A):
+    A = matrix_A.copy()
+    B = np.zeros((len(A),len(A.T)))
+    if len(A.T) != len(A):
+        raise Warning('Matrix is not square')
+
+    for i in range(len(A)):
+        B[i, i] = 1
+        for j in range(len(A.T)):
+            if i == 0:
+                B[i,j] = A[i,j]
+            else:
+                # checked the result of this against this link, so I think its right
+                # www.emathhelp.net/calculators/linear-algebra/lu-decomposition-calculator
+                if i <= j:
+                    B[i,j] = A[i,j] - np.sum(B[i,:j]*B[:j,j])
+                if i > j:
+                    B[i,j] = (1/B[j,j])*(A[i,j]-np.sum(B[i,:j]*B[:j,j]))
+
+    #B is the LU decomp
+    return B
+\end{lstlisting}
+
+To utilise the LU decomp to find the solutions we also have to implement forward and backward substitution. These functions were improvements on my code from last year avoiding the unnecessary inverse in the backward substitution.
+
+\begin{lstlisting}[language=Python]
+def forward_sub(matrix_A,y):
+    z = np.zeros(matrix_A.shape[0])
+    for i in range(matrix_A.shape[0]):
+        z[i] = (1/matrix_A[i,i])*(y[i]-matrix_A[i,:i]@z[:i])
+    return z
+
+def backward_sub(matrix_A,z):
+    c = np.zeros(matrix_A.shape[0])
+    for i in range(matrix_A.shape[0]-1,-1,-1):
+        c[i] = (z[i] - (matrix_A[i,i+1:]@c[i+1:]))
+    return c
+\end{lstlisting}
+
+My get y function is ripped from my work last year, I just tried to implement a smarter version and realised c is limited to 20, where as the V matrix would be 1000x1000. So I think this works for now as a way to step by step pass through the polynomial. Perhaps this is the source of error for the LU decomp and a smarter implementation would reduce this significantly.
+\newpage
+
+\begin{lstlisting}[language=Python]
+def get_y(x,c,n):
+    #is this wrong?
+    #this seems fine...
+    new_x = np.linspace(x[0],x[-1],n)
+    new_y = np.zeros(len(new_x))
+
+    for i in range(len(new_x)):
+        total = 0
+        for j in range(c.shape[0]):
+            total+=c[j]*(new_x[i]**j)
+        new_y[i]=total
+    return new_y
+\end{lstlisting}
+
+From here we move onto the interpolation algorithms. I will start by introducing my bisection algorithm which is not simple or elegant but I tested to catch edge cases. It handles monotonic values, multiple edge samples, single edge samples, assumes the left case is dominant and handles poor inputs. I think this is fairly robust and works well with the interpolation schemes I have implemented.
+
+\begin{lstlisting}[language=Python]
+def bisection(point_request:float,
+              data_input:np.ndarray,
+              points_around:int|None = None #this is value left/right ie 2 would be n-2 n-1 n n+1 n+2
+              ) -> tuple[np.array,bool]:
+
+    data = data_input.copy()
+    edge_missing = False
+    try:
+        left_index = 0
+        right_index = len(data[0]) - 1
+        left_edge = data[0,left_index]
+        right_edge = data[0,right_index]
+    except:
+
+        left_index = 0
+        right_index = len(data) - 1
+
+        left_edge = data[left_index]
+        right_edge = data[right_index]
+
+    # assume point is within range
+    assert left_edge <= point_request <= right_edge, ("point out of range")
+
+    #assume left dominant
+    middle_index = math.floor((right_index-left_index) / 2)
+    #continue until edges found
+    while right_index - left_index > 1:
+
+        # assume left dominant, update edges
+        try:
+            if point_request <= data[0,middle_index]:
+                right_index = middle_index
+            elif point_request > data[0,middle_index]:
+                left_index = middle_index
+        except:
+            if point_request <= data[middle_index]:
+                right_index = middle_index
+            elif point_request > data[middle_index]:
+                left_index = middle_index
+        middle_index = math.floor((left_index+right_index)/2)
+
+        #check stopping condition
+        if right_index == left_index+1:
+
+            #check if point falls on one of the edges, if so both points the same
+            try:
+                if point_request == data[0,left_index]:
+                    right_index = left_index
+                elif point_request == data[0,right_index]:
+                    left_index = right_index
+            except:
+                if point_request == data[left_index]:
+                    right_index = left_index
+                elif point_request == data[right_index]:
+                    left_index = right_index
+
+    #if no boundary condition return edges
+
+
+    if points_around is None:
+        return np.array([data[0][left_index:right_index+1],data[1][left_index:right_index+1]]), edge_missing
+
+    #else return list with boundary indices included
+    else:
+
+        assert points_around > 0, ('Points around is negative, required to be stritcly postitive')
+        left_bound = left_index - points_around
+        right_bound = right_index + points_around
+        if left_bound < 0:
+            left_bound = 0
+            edge_missing = True
+        if right_bound > len(data[0])-1:
+            right_bound = len(data[0])-1
+            edge_missing = True
+
+        return np.array([data[0][left_bound:right_bound+1],data[1][left_bound:right_bound+1]]), edge_missing
 
 \end{lstlisting}
+
+Once the bisection algorithm was implemented we could implement the following codes. Linear interpolation was straight forward, it just required weighing the y value from the left and right point against the proposed x point, drawing a straight line between points. If the points were monotonic, the y value for that point was returned.
+
+\begin{lstlisting}[language=Python]
+def linear_interpolation(point_request:float,
+                         data = np.ndarray,
+                         ) -> np.ndarray[float,float]:
+
+    points, egde = bisection(point_request,data)
+    if points.shape[1] == 1:
+        return np.array([points[0,0],points[1,0]])
+    else:
+        right_point = points[:,0]
+        left_point = points[:,1]
+    fraction = (right_point[1] - left_point[1])/(right_point[0] - left_point[0])
+    interpolated_value = fraction*(point_request - left_point[0]) + left_point[1]
+    return np.array([point_request,interpolated_value])
+
+\end{lstlisting}
+
+We then implemented the Lagrange polynomial to check if our algorithms were benchmarking against each other. There was a assertion statement to ensure the degree of the polynomial did not pass 5, however we needed to check for a degree of 19, so this was silenced. I did a product of the equation given in the lectures and then summed the products to get the full polynomial.
+\newpage
+
+\begin{lstlisting}[language=Python]
+def lagrange_polynomial(point_request:float,
+                        degree_of_polynomial:int,
+                        full_data:np.ndarray
+                        ) -> np.ndarray[float,float]:
+    # assert degree_of_polynomial <= 5, ('Degree of polynomial should be less than or equal to 5')
+    assert degree_of_polynomial > 0, ('Degree of polynomial must be strictly postitive and greater than 0')
+
+    data = full_data.copy()
+
+    nearby_samples, edge_case = bisection(point_request,data,40)
+    # if edge_case:
+    #     return np.array([point_request, None])
+    nearby_data = nearby_samples.copy()
+    interpolated_value = 0
+
+    for i in range(degree_of_polynomial+1):
+        products = nearby_data[1,i]
+        for j in range(degree_of_polynomial+1):
+            if j == i:
+                continue
+            product = (point_request - nearby_data[0,j])/(nearby_data[0,i] - nearby_data[0,j])
+            products *=product
+
+        interpolated_value += products
+
+    return np.array([point_request, interpolated_value])
+\end{lstlisting}
+
+We then made an implementation of Neville's algorithm to generate a polynomial of any degree allowed given the data available. I implemented a version originally that did not work due to the indicies and signs. I also had a closest pair function as stated in the slides but could not figure out where to implement it so this was removed.
+
+\begin{lstlisting}[language=Python]
+def nevilles_algorithm(point_request:float,
+                       M_points_around:int,
+                       data:np.ndarray
+                       ) -> np.ndarray[float,float]:
+
+    nearby_samples, edge_case = bisection(point_request,data,M_points_around)
+    #save only ys
+    p_i = nearby_samples[1,:].copy()
+
+    # tried to follow the slides perfectly, used https://github.com/gisalgs/geom/blob/master/neville.py
+    # to adjust my indices and sums
+    for k in range(1,len(p_i)):
+        for i in range(len(p_i)-k):
+            j= i + k
+            top_1 = (point_request - nearby_samples[0,j])*p_i[i]
+            top_2 = (nearby_samples[0,i] - point_request)*p_i[i+1]
+            bottom = 1/(nearby_samples[0,i]-nearby_samples[0,j])
+            p_i[i] = (top_1+top_2)*bottom
+
+    return np.array([point_request,p_i[0]])
+
+    # heres what I had before not super different just wasn't summing correct
+    # def nevilles_algorithm(point_request:float,
+    #                        M_points_around:int,
+    #                        data:np.ndarray
+    #                        ) -> tuple[float,float]:
+    #     nearby_samples, edge_case = bisection(point_request,data,M_points_around)
+    #     print(nearby_samples)
+    #     #save only ys
+    #     p_i = nearby_samples[:,1].copy()
+    #     #find the closest pair or single x value
+    #     nearest_pair, _ = bisection(point_request,data)
+    #     if len(nearest_pair[:,0]) > 1:
+    #         closest = check_closest(nearest_pair,point_request)
+    #         initial_solution = closest[1]
+    #     else:
+    #         initial_solution = nearest_pair[0,1]
+    #
+    #     for k in range(1,len(p_i)):
+    #
+    #         print(p_i)
+    #         for i in range(0,len(p_i)-k):
+    #             j= i + k
+    #             top_1 = (nearby_samples[j,0]-point_request)*p_i[i]
+    #             top_2 = (point_request-nearby_samples[i,0])*p_i[j]
+    #             bottom = 1/(nearby_samples[j,0]-nearby_samples[i,0])
+    #             p_i[i] = (top_1+top_2)*bottom
+    #     print(p_i)
+    #     print(point_request)
+    #     print(nearby_samples)
+    #     print(p_i)
+\end{lstlisting}
+
+
 
 \section*{Results}
 \subsection*{Question 1: Poisson Distribution}
 
+We find that the script returns a value for every test input without any hardcoding, and we believe this achieves a high accuracy at returning 7 significant figures. The results of this can be seen in table. \ref{}
+
+\input{../data/poisson.csv}
+
 \subsection*{Question 2: Vandermonde Matrix}
+
+\newpage
+\appendix
+\section*{Appendix}
+
+I made a new implementation of the Gauss-Jordan elimination algorithm which I could not find a purpose for here.
+\begin{lstlisting}[language=Python]
+def gauss_jordan_elimination(matrix_A:np.ndarray,
+                             vector_b:np.ndarray
+                             )->tuple[np.ndarray,np.ndarray]:
+
+    # b is the solution
+    #could include the identity for the inverse
+    A = matrix_A.copy()
+    b = vector_b.copy()
+
+    if len(A.T) != len(A):
+        raise Warning('Matrix is not square')
+    for i in range(len(A.T)):
+        #i is column index
+        # A[:,i] is column
+        largest_index = None
+        pivot = 0
+
+        for j in range(i,len(A)):
+
+            #j is from column index to row index max
+            # loop over rows from row i
+            # find max in column i
+            # so A[j,i]
+            if abs(A[j,i]) > abs(pivot):
+                largest_index = j
+                pivot = A[j,i]
+
+        if abs(pivot) > 0:
+
+            #swap then normalise
+            A[[i, largest_index]]   = A[[largest_index, i]]
+            A[i,:]                  = A[i,:]/pivot
+
+            b[[i,largest_index]]    = b[[largest_index,i]]
+            b[i]                    = b[i]/pivot
+
+            #reduce above and below diagonal to 0
+            # need to make a copy first for the b vector
+
+            above_terms = A[:i, i].copy()
+            below_terms = A[i+1:, i].copy()
+            A[:i, :]    -= above_terms[:, None]     * A[i, :]
+            A[i+1:, :]  -= below_terms[:, None]     * A[i, :]
+
+            b[:i]       -= above_terms              * b[i]
+            b[i+1:]     -= below_terms              * b[i]
+
+        else:
+            raise Warning('Matrix is not singular')
+
+    return b
+\end{lstlisting}
+
 
 \end{document}
