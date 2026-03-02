@@ -37,7 +37,10 @@ def LU_10_iter(vandermonde,x,y,points = 1001):
     z = la.forward_sub(A, y1)
     c = la.backward_sub(A, z)
 
-    for _ in range(100):
+    for _ in range(10):
+        #todo ask for clarification.
+        # this was applying to my x? i don't understand how, i thought this was y, I need to ask for clarification
+
         residual = y1 - vandermonde @ c
         z = la.forward_sub(A, residual)
         delta = la.backward_sub(A, z)
@@ -75,6 +78,7 @@ def question_2() -> tuple[pd.DataFrame]:
     end = time.perf_counter()
     elapsed_1_iter = end - start
 
+    math_functions.get_y_check(vandermonde,c)
 
     start = time.perf_counter()
     c_1, yyy = LU_10_iter(vandermonde, x, y)
