@@ -1,12 +1,10 @@
 
 import os
+import sys
 import time
 import numpy as np
 import pandas as pd
 
-from functions import interpolation
-from functions import math_functions
-from functions import linear_algebra as la
 
 import matplotlib.pyplot as plt
 
@@ -14,6 +12,14 @@ import matplotlib.pyplot as plt
 script_dir = os.path.dirname(__file__)
 data_dir = os.path.join(script_dir, "../data")
 plots_dir = os.path.join(script_dir, "../plots")
+
+
+project_root = os.path.abspath(os.path.join(script_dir,'../../../'))
+sys.path.append(project_root)
+
+from functions import interpolation
+from functions import math_functions
+from functions import linear_algebra as la
 
 os.makedirs(plots_dir, exist_ok=True)  # just in case
 
