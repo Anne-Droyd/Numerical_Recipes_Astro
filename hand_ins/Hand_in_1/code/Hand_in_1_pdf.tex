@@ -143,7 +143,88 @@ def log_factorial(x:np.int32
     return np.float32(fac_sum)
 \end{lstlisting}
 
+\subsection*{Question 2: Vandermonde Matrix}
+In this section we are first challenged with obtaining the Vandermonde Matrix \textbf{V}, which is defined by eq. \ref{eq: vandermonde}. Where $x_i$ is 20 points defined in the vandermonde.txt file. Secondly we are asked to obtain the 19 degree polynomial for these 20 points through the use of LU decomposition and 19 degree polynomial interpolation, and timing the time required for each process.
+
+\begin{equation}
+    V_{i,j} = x_i^j
+    \label{eq: vandermonde}
+\end{equation}
+
+I've removed some sections from this function for ease of reading (ie. plotting, saving) and the return declaration is incorrect here, as we return a tuple of multiple arrays. We start this section by importing the data from the vandermonde.txt file. Splitting the data and reorganising the data in to more usable formats, and initialise our storage.
+
+We then calculate the vandermonde matrix with the math\_functions function get\_vandermonde\_matrix(x). Once we have this we can perform our LU decompositions over 1 iteration and 10 iterations with the functions LU\_n\_iter and can time this process with the perf\_counter, we opted out of the usage of timeit as we require the outputs of these functions.
+
+We then perform a timing analysis on the nevilles algorithm implementation by parsing through the 1001 x points and interpolating their values. This function utilises the M variable which is the amount of points around the requested data point (found through bisection) that will be considered during the interpolation, setting M = 20, means all points are considered at all interpolations resulting in a 19 degree polynomial fit. Setting this value lower to 3/5/8 allows for a much smoother approximation as not all points are considered, only neighbouring points.
+
+After this we interpolate the values for all 1001 points through linear/lagrange/Nevilles algorithm interpolation. These values are saved and later plotted. Subsequently, we re-interpolate values for the known x values and obtain the difference between the known value $y_i$ and the interpolated value y(x)
+
+\begin{lstlisting}[language=Python]
+def question_2() -> tuple[pd.DataFrame]:
+    data = import_data()
+    x,y = np.array(data['x']),np.array(data['y'])
+    x_points_to_interpolate = np.linspace(x[0],x[-1],1001)
+    M=20 #change to 3/5/8 for smooth function
+    nevilles    = []
+    lagrange    = []
+    linear      = []
+    x_points = []
+    x_y = np.array([x, y])
+
+    vandermonde = math_functions.get_vandermonde_matrix(x)
+
+    start = time.perf_counter()
+    c, ys = LU_1_iter(vandermonde, x, y)
+    end = time.perf_counter()
+    elapsed_1_iter = end - start
+
+    start = time.perf_counter()
+    c_1, yyy = LU_10_iter(vandermonde, x, y)
+    end = time.perf_counter()
+    elapsed_10_iter = end - start
+
+    start = time.perf_counter()
+    for point_index in range(0,len(x_points_to_interpolate)):
+
+        point_request = x_points_to_interpolate[point_index]
+        interpolated_values_nev     = interpolation.nevilles_algorithm(point_request,M,x_y)
+    end = time.perf_counter()
+    elapsed_nev = end - start
+
+    #need to split this up for timing purposes
+    for point_index in range(0,len(x_points_to_interpolate)):
+        point_request = x_points_to_interpolate[point_index]
+        interpolated_values_linear  = interpolation.linear_interpolation(point_request,x_y)
+        interpolated_values_nev     = interpolation.nevilles_algorithm(point_request,M,x_y)
+        interpolated_values_lag     = interpolation.lagrange_polynomial(point_request,19,x_y)
+        linear.append(interpolated_values_linear[1])
+        nevilles.append(interpolated_values_nev[1])
+        lagrange.append(interpolated_values_lag[1])
+        x_points.append(x_points_to_interpolate[point_index])
+
+    y_check=[]
+    for point_request in x:
+        interpolated_values_nev = interpolation.nevilles_algorithm(point_request,M,x_y)
+        y_check.append(interpolated_values_nev[1])
+    diff_nev = abs(y_check - y)
+
+    y_check = []
+    c_1, y_check = LU_1_iter(vandermonde, x, y,20)
+    diff_1st = abs(y_check - y)
+
+    y_check = []
+    c_1, y_check = LU_10_iter(vandermonde, x, y,20)
+    diff_10th = abs(y_check - y)
+
+\end{lstlisting}
+
+\begin{lstlisting}[language=Python]
+
+\end{lstlisting}
+
 \section*{Results}
 \subsection*{Question 1: Poisson Distribution}
+
+\subsection*{Question 2: Vandermonde Matrix}
 
 \end{document}
