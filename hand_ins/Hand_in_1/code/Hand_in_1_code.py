@@ -78,7 +78,7 @@ def question_2() -> tuple[pd.DataFrame]:
     end = time.perf_counter()
     elapsed_1_iter = end - start
 
-    math_functions.get_y_check(vandermonde,c)
+    # math_functions.get_y_check(vandermonde,c)
 
     start = time.perf_counter()
     c_1, yyy = LU_10_iter(vandermonde, x, y)
