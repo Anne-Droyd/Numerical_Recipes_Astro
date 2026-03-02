@@ -71,7 +71,11 @@ def question_1() -> pd.DataFrame:
         result = math_functions.poisson_distribution(lam,k)
         results.append([lam,k,result])
     results = pd.DataFrame(results,columns=['lambda','k','Poisson result'])
-    results.to_csv(os.path.join(data_dir, 'poisson.tex'))
+    results.to_csv(os.path.join(data_dir, 'poisson.csv'))
+    latex = results.to_latex(index=False,escape=False,column_format='|c|c|c|',
+                             header = True, caption = 'Poisson Results', label = 'tab:poisson')
+    with open(os.path.join(data_dir, 'poisson.tex'),'w') as f:
+        f.write(latex)
     return results
 
 def question_2() -> tuple[pd.DataFrame]:
