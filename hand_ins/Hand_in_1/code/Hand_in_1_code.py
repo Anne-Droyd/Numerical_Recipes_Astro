@@ -1,9 +1,11 @@
 import numpy as np
-import timeit
+import time
 import math
+import os
 
 import pandas as pd
 
+from pathlib import Path
 from functions import interpolation
 from functions import math_functions
 from functions import linear_algebra as la
@@ -13,13 +15,43 @@ import matplotlib.pyplot as plt
 from functions.linear_algebra import forward_sub, backward_sub
 
 
+# get the folder where the script is located
+script_dir = os.path.dirname(__file__)
+data_dir = os.path.join(script_dir, "../data")
+plots_dir = os.path.join(script_dir, "../plots")
+
+os.makedirs(plots_dir, exist_ok=True)  # just in case
+
+
+
 def import_data():
-    url = 'hand_ins/Hand_in_1/data/Vandermonde.txt'
-    data=pd.DataFrame(np.genfromtxt(url,comments='#',dtype=np.float64),columns=['x','y'])
+    current_dir = Path(__file__).resolve().parent
+
+    data_path = current_dir.parent / "data" / "Vandermonde.txt"
+    data=pd.DataFrame(np.genfromtxt(data_path,comments='#',dtype=np.float64),columns=['x','y'])
     return data
 
-def blah():
-    h=0
+def LU_1_iter(vandermonde,x,y,points = 1001):
+    A = la.crouts_algorithm(vandermonde)
+    y1 = y.copy()
+    out = la.forward_sub(A, y1)
+    c = la.backward_sub(A, out)
+    y = math_functions.get_y(x,c,points)
+    return c, y
+
+def LU_10_iter(vandermonde,x,y,points = 1001):
+    y1 = y.copy()
+    A = la.crouts_algorithm(vandermonde)
+    z = la.forward_sub(A, y1)
+    c = la.backward_sub(A, z)
+
+    for _ in range(100):
+        residual = y1 - vandermonde @ c
+        z = la.forward_sub(A, residual)
+        delta = la.backward_sub(A, z)
+        c += delta
+    y = math_functions.get_y(x,c,points)
+    return c, y
 
 def question_1() -> pd.DataFrame:
     question_1_values = np.array([[1,0],[5,10],[3,21],[2.6,40],[100,5],[101,200]],dtype=np.float32)
@@ -46,16 +78,18 @@ def question_2() -> tuple[pd.DataFrame]:
     x_points_to_interpolate = np.linspace(x[0],x[-1],1001)
     vandermonde = math_functions.get_vandermonde_matrix(x)
 
-    A = la.crouts_algorithm(vandermonde)
-    y1 = y.copy()
-    out = la.forward_sub(A,y1)
-    c = la.backward_sub(A,out)
-    ys = math_functions.get_y(x,c,1001)
+    start = time.perf_counter()
+    c, ys = LU_1_iter(vandermonde, x, y)
+    end = time.perf_counter()
+    elapsed_1_iter = end - start
 
-    for n in range(0,10):
-        z = forward_sub(A,y1)
-        c_1 = backward_sub(A,z)
-    yyy = math_functions.get_y(x,c_1,1001)
+
+    start = time.perf_counter()
+    c_1, yyy = LU_10_iter(vandermonde, x, y)
+    end = time.perf_counter()
+    elapsed_10_iter = end - start
+
+
     M=20 #change to 3/5/8 for smooth function
     nevilles    = []
     lagrange    = []
@@ -64,6 +98,15 @@ def question_2() -> tuple[pd.DataFrame]:
     akima       = []
     x_points = []
     x_y = np.array([x, y])
+
+
+    start = time.perf_counter()
+    for point_index in range(0,len(x_points_to_interpolate)):
+
+        point_request = x_points_to_interpolate[point_index]
+        interpolated_values_nev     = interpolation.nevilles_algorithm(point_request,M,x_y)
+    end = time.perf_counter()
+    elapsed_nev = end - start
 
     #need to split this up for timing purposes
     for point_index in range(0,len(x_points_to_interpolate)):
@@ -88,10 +131,20 @@ def question_2() -> tuple[pd.DataFrame]:
     linear = np.array(linear)
     nevilles = np.array(nevilles)
 
-    diff_linear = lagrange-linear
-    diff_nev = abs(lagrange-nevilles)
-    diff_1st = abs(lagrange-ys)
-    diff_10th = abs(lagrange-yyy)
+    y_check=[]
+    for point_request in x:
+        interpolated_values_nev = interpolation.nevilles_algorithm(point_request,M,x_y)
+        y_check.append(interpolated_values_nev[1])
+    diff_nev = abs(y_check - y)
+
+    y_check = []
+    c_1, y_check = LU_1_iter(vandermonde, x, y,20)
+    diff_1st = abs(y_check - y)
+
+    y_check = []
+    c_1, y_check = LU_10_iter(vandermonde, x, y,20)
+    diff_10th = abs(y_check - y)
+
     fig, axes = plt.subplots(2,1)
     axes = axes.flatten()
     axes[0].scatter(x_points,yyy, marker = 'o', alpha = 0.4, label = '10th')
@@ -103,15 +156,20 @@ def question_2() -> tuple[pd.DataFrame]:
     axes[0].scatter(x,y,label = 'true values')
     axes[0].legend()
 
-    axes[1].scatter(x_points,diff_linear, marker = 'o', alpha = 0.4, label = 'linear')
-    axes[1].scatter(x_points,diff_nev, marker = '^', alpha = 0.4, label = 'nevilles')
-    axes[1].scatter(x_points,diff_1st ,marker = '^', alpha = 0.4, label = '1st')
-    axes[1].scatter(x_points,diff_10th, marker = 'o', alpha = 0.4, label = '10th')
+    axes[1].plot(x,diff_nev, marker = '^', alpha = 0.4, label = 'nevilles')
+    axes[1].plot(x,diff_1st ,marker = '^', alpha = 0.4, label = '1st')
+    axes[1].plot(x,diff_10th, marker = 'o', alpha = 0.4, label = '10th')
     axes[1].set_yscale('log')
     axes[1].legend()
-    plt.show()
+    plt.savefig(os.path.join(plots_dir, "results.png"))
 
-    return c, c_1
+    np.savetxt(os.path.join(data_dir, 'c_1_iter.csv'), c, delimiter=',')
+    np.savetxt(os.path.join(data_dir, 'c_10_iter.csv'), c_1, delimiter=',')
+    np.savetxt(os.path.join(data_dir, '1_iter_time.txt'), [elapsed_1_iter], delimiter=',')
+    np.savetxt(os.path.join(data_dir, '10_iter_time.txt'), [elapsed_10_iter], delimiter=',')
+    np.savetxt(os.path.join(data_dir, 'nev_time.txt'), [elapsed_nev], delimiter=',')
+
+    return c, c_1, elapsed_1_iter, elapsed_10_iter, elapsed_nev
 
 question_1_results = question_1()
 print('\n')
@@ -125,8 +183,14 @@ question_2_results = question_2()
 print('\n')
 print('Question 2 values and results')
 print('------------------------------------------------------')
-print(question_2_results[0])
+print('C from 1 iteration of crouts algorithm\n',question_2_results[0])
 print('\n')
-print(question_2_results[1])
+print('C from 10 iterations of crouts algorithm\n',question_2_results[1])
+print('\n')
+print('Elapsed time 1 iteration of crouts algorithm (sec)\n',question_2_results[2])
+print('\n')
+print('Elapsed time 10 iterations of crouts algorithm (sec)\n',question_2_results[3])
+print('\n')
+print('Elapsed time for Neville\'s algorithm (sec)\n',question_2_results[4])
 print('------------------------------------------------------')
 print('\n')

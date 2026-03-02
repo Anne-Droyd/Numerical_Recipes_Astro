@@ -1,0 +1,936 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage[utf8]{inputenc}
+\input{included_packages}
+
+%opening
+\title{NUR-A Hand in 2}
+\author{Matthew Kirwan}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+In this paper, I will examine the construction and use of open integration, differentiation, sorting, and root finding algorithms among other things.
+
+\end{abstract}
+
+\section{Introduction}
+
+So I didn't initially want to leave my unedited code in this paper but I didn't want to risk less marks for not having comments. If this is an issue I will clean it up for the next paper. Personally I would prefer a cleaner
+
+\section{Methods} In this section, I describe the steps taken to solve the given problems.
+
+\subsection{Q1 a): Normalization Constant} Question 1 a) focused on the distribution and random sampling of galaxies, which follow a probability distribution. The objective of part a) was to write a numerical integrator that utilizes extrapolation techniques to solve the integral provided in \ref{eq: triple integral} to find the normalization constant $A$. The function $n(x)$ is expressed as shown in \ref{eq: n_x}.
+
+\begin{equation}
+    \iiint n(x) , dV = \langle N_{\text{sat}} \rangle
+    \label{eq: triple integral}
+\end{equation}
+
+The constant values used are as follows: $a=2.4$, $b=0.25$, $c=1.6$, $x_{\text{max}}=5$, and $\langle N_{\text{sat}} \rangle = 100$.
+
+\begin{equation}
+    n(x) = A \langle N_{\text{sat}} \rangle \left( \frac{x}{b} \right)^{a-3} \exp \left[ - \left( \frac{x}{b} \right)^c \right].
+    \label{eq: n_x}
+\end{equation}
+
+To account for spherical geometry in the integral, we multiply the distribution by $r^2 \sin(\phi) , d\phi , d\theta$.
+
+\subsubsection{Numerical Integration and Calculation of $A$} To start, I wrote a function to manage the key operations in question 1, beginning with the calculation of the normalization constant $A$.
+
+\begin{lstlisting}[language=Python]
+def question_1():
+	#part A (calc A)
+	#stop calculating A
+	global A
+	a = 2.4
+	b = 0.25
+	c = 1.6
+	x_max = 5
+	N_sat = 100
+	A = calc_A(a,b,c,x_max,N_sat)
+
+    with open("A.txt", "w") as file:
+		file.write(str(A))
+	file.close()
+
+\end{lstlisting}
+
+The function \texttt{calc\_A} is responsible for computing $A$. As $A$ is a constant, we can take it outside the integral. Initially, we set $A = 1$ to simplify the evaluation. Afterward, we compute the integrals over the spherical coordinates $r$, $\phi$, and $\theta$ using a Romberg integrator, which iteratively approximates the integral values.
+
+The following function calculates the integrals:
+
+\begin{lstlisting}[language=Python]
+def calc_A(a,b,c,x_max,N_sat):
+
+	A = 1
+	# needs to be open at 0 too lazy to close it for the sin wave
+
+	# A is a constant? if so can take it out of the integral and bring it to other side
+	# feel like this x ** 2 term is incorrect as it negates the high density at the centre
+	# is infinite galaxies at the centre realistic?
+	# I think the formula I'm using assumes a constant density and so more volume would be at outer edges
+	# instead of the inner core as shown by this equation.... I'll ask about this
+	dr = romberg_integration(lambda x: q1_eq1(a, b, c, N_sat, x, A) * x ** 2, 0, x_max, 1000, 10, 0.000001)
+	dphi = romberg_integration(lambda phi: np.sin(phi), 0, np.pi, 1000, 10, 0.000001)
+	# not sure how to do dtheta should be 2pi in end so taking it as constant
+	dtheta = romberg_integration(lambda theta: 1, 0, 2 * np.pi, 1000, 10, 0.000001)
+
+	# https://www.youtube.com/watch?v=7D6Bp9Yik7E
+
+	# https://en.wikipedia.org/wiki/Multiple_integral
+	# I need to integrate dr over 0 - 2pi and then integrate that from 0 - pi
+	# how though? I think its just going to end up at r ** 2 * np.sin(theta)
+
+	integral_over_volume = dr * dphi * dtheta
+	A = np.float64(N_sat / (dr * 2 * 2 * np.pi))
+	A_1 = np.float64(N_sat / integral_over_volume)
+
+	# bench marking against other students we all seem to be coming to A = 9.xx
+	# I think this is right being 9.19486
+
+	return A_1
+\end{lstlisting}
+
+First we will look at the q1\_eq1 function as this is quite simple. I used np.clip as I thought this was equivalent to using np.linspace(endpoint=False), and for some reason my open integrator chose to only work sometimes. I could get it to work for calculating A but upon extending this to other operations it decided not to work and I had run out of time to troubleshoot this. This can be confirmed by changing x\_safe to x and checking that A is still output as expected.
+
+\begin{lstlisting}[language=Python]
+def q1_eq1(a,b,c,N_sat,x,A):
+	B = 1 / b
+	# I think this is safe to use as it just removes the values before a tolerance to avoid the undefined div / 0 issue
+	# probably not allowed to do this, should use my solve quadratic function
+	# but like I don't think so because I essentially did the same by setting the endpoint = False in linspace
+	x_safe = np.clip(x, 1e-10, None)
+	# just ripping the equation straight from the problem
+	n_x = A * N_sat * ((x_safe * B) ** (a - 3)) * np.exp( - (x_safe * B) ** c)
+	return n_x
+\end{lstlisting}
+
+I verified the calculation of the integrals over $\phi$ and $\theta$ by comparing them with known values, ensuring the integrator was working as expected.
+
+\subsubsection{Romberg Integration} The Romberg integration method was used to numerically evaluate the integrals. This method progressively refines estimates of the integral by combining results from the trapezoid rule at different levels. It takes the following parameters:
+
+\begin{itemize} \item \texttt{func}: The function to be integrated. \item \texttt{a} and \texttt{b}: The limits of integration. \item \texttt{n\_init}: The initial number of steps in the trapezoidal rule. \item \texttt{m}: The number of refinement levels. \item \texttt{tolerance}: A threshold for the precision of the result. \end{itemize}
+
+The integration proceeds by building a triangular matrix, where the first column is the initial trapezoidal approximation, and each subsequent column improves the estimate. The process stops when the difference between successive estimates falls below the given tolerance. We then return the estimate of the integral given by the Romberg method.
+
+\begin{lstlisting}[language=Python]
+def romberg_integration(func, a, b, n_init, m, tolerance):
+	# need to understand this.....
+	int_matrix = np.zeros((m,m))
+	n = n_init
+	for col in range(m):
+		for row in range(m - col):
+
+			if col == 0:
+				int_matrix[row][col] = trapezoid_rule(func,a,b,n)
+				n *= 2
+			else:
+				int_matrix[row][col] = (4 ** col * int_matrix[row + 1, col-1] - int_matrix[row, col-1]) / (4 ** col-1)
+				# https://www.integral-calculator.com/checked result against this.
+				# https://en.wikipedia.org/wiki/Romberg%27s_method checked method against this but found it gave the wrong result
+
+				if abs(int_matrix[row][col] - int_matrix[row][col-1]) < tolerance:
+					# don't know if this is correct maybe it should be [0][col]
+					# changing this to 0 creates larger x values sometimes but the histogram no longer follows the curve
+					return int_matrix[row][col]
+	return int_matrix[0,-1]
+\end{lstlisting}
+
+\subsubsection{Trapezoidal Rule} The trapezoidal rule is used to calculate the initial estimate for the integrals. This rule is applied to the function \texttt{func} over the interval [a,b] with n points. If the first few points form a constant function, we use a special case to calculate the integral. For higher precision, we solve a quadratic equation based on the points and their corresponding function values. We then return the result of the trapezoidal rule as the integral.
+
+\begin{lstlisting}[language=Python]
+def trapezoid_rule(func,a,b,n):
+	x = np.linspace(a,b,n)
+	step_size = (b - a) / (n - 1)
+	# quadratic of func(x) for 3 points after the start to estimate func(x[0])
+	y = func(x[1:4])
+
+
+	if isinstance(y,int):
+		# hack to integrate constant.... think this actually might be the right way to do it....
+		integral = y * x[-1] - y * x[0]
+		return integral
+	c = solve_quadratic(x[1:4],y)
+	integral = step_size * (0.5 * c + sum(func(x[1:-1])) + 0.5 * func(x[-1]))
+
+	return integral
+
+\end{lstlisting}
+
+\subsubsection{Solving the Quadratic} The function \texttt{solve\_quadratic} performs the substitution needed to find the constant C, the point where the parabola crosses the y-axis, allowing us to apply the trapezoidal rule effectively. The equation for this comes from the work outlined in \cite{socratic_quadratic_function}.
+
+\begin{lstlisting}[language=Python]
+def solve_quadratic(x,y):
+	# https://socratic.org/questions/given-three-points-0-3-1-4-2-9-how-do-you-write-a-quadratic-function-in-standard
+    #simultaneous equations to remove c, then sub a into b, once b is obtained, sub b into get a, then a and b into one of the original equations to get c
+	b = (-1 * ((y[0] - y[1]) / ((x[0]) ** 2 + (x[1]) ** 2)) + y[2] - y[1]) / (( - x[0] + x[1]) / (x[0] ** 2 - x[1] ** 2) + x[2] - x[1])
+	a = (y[0] - y[1] - b * (x[0] - x[1])) / (x[0] ** 2 - x[1] ** 2)
+	c = y[2] - a * x[2] ** 2 - b * x[2]
+	zero_point = c
+	return zero_point
+\end{lstlisting}
+
+Returning back to the Calc\_A function we can see that the final value of A should be given as
+$\frac{\langle N_{sat} \rangle}{\iiint dV} $
+
+\subsection*{Q1 b): Statistical Distribution of Galaxies}
+
+Question b) focused on randomly generating 10,000 galaxies following the given probability distribution from x[0,5) where the probability distribution is given by \ref{eq: prob dist}. Then creating a log-log plot showing a histogram of the distributions of the randomly generated galaxies along $r$ vs the analytical function.
+
+\begin{equation}
+    p(x)dx= \frac{N(x)dx}{\langle N_{\text{sat}} \rangle}
+    \label{eq: prob dist}
+\end{equation}
+
+We return to the main function to call all our auxiliary functions to do the work for us.
+We begin by initializing all our parameters and arrays. Then for this approach I decided to calculate the CDF with the prob\_calc function in order to generate my random samples from using inverse transform sampling.
+
+I then pass my cdf and the number of points I want to generate to the generate\_new\_points function. This returns an array of 10,000 points in spherical co-ordinates, I pass these points to a plotting function called plot\_histogram\_and\_analytic.
+
+We then transform our points from spherical co-ordinates to Cartesian co-ordinates and pass these points to a plotting function called plotting.
+
+\begin{lstlisting}[language=Python]
+def question_1():
+	number_of_points = 10000
+	center_point = [0, 0, 0]
+	new_points_array = []
+
+	# Get the cdf for sampling r
+	cdf,pdf = prob_calc(a,b,c,x_max,N_sat,A)
+
+	# Get the points
+	points_in_spherical = generate_new_points(cdf,number_of_points)
+
+	# Plot the part for part B
+	plot_histogram_and_analytic(cdf, pdf, points_in_spherical, a, b, c, N_sat, A)
+
+	#make it nice for plotting
+	for point in points_in_spherical:
+		r = point[0]
+		theta = point[1]
+		phi = point[2]
+		point_in_cart = spherical_to_cartesian(r, theta, phi, center_point)
+		new_points_array.append(point_in_cart)
+
+    plotting(xxx,new_points_array)
+\end{lstlisting}
+
+\subsubsection{Getting the CDF}
+
+First up we're going to look at the first function called prob\_calc. First we'll notice that the pdf is generated for all x values in x\_list using list comprehension. We then calculate the integral using the Romberg integrator shown previously so that we are able to calculate the CDF.
+We get the cumulative sum of the pdf values multiplied by the step size all divided by the total integral.
+
+we then return the CDF and PDF for use later.
+
+\begin{lstlisting}[language=Python]
+def prob_calc(a,b,c,x_max,N_sat,A):
+	# Create x values
+	x_list = np.linspace(0, x_max, 5000)
+
+	# Compute PDF at all points
+	# Not sure if the PDF is supposed to be the integral over the sphere, but it works out nicely if it is
+	# list comprehension faster than for loop somehow will try use it more
+	pdf_values = np.array([q1_eq1(a, b, c, N_sat, x, A) * x ** 2 for x in x_list])
+	# Compute full integral once using Romberg
+	total_integral = romberg_integration(lambda x: q1_eq1(a, b, c, N_sat, x, A) * x ** 2, 0, x_max, 100, 10, 0.000001)
+
+	# Use CUMSUM to construct the CDF
+	# Am I allowed to use CUMSUM, surely so it's a simple command, I would say it is more simple than np.hist
+	cdf_values = np.cumsum(pdf_values) * (x_list[1] - x_list[0]) / total_integral
+	# ensuring edge case of 99.9 - 100 not ignored
+	cdf_values[-1] = 1
+
+	return cdf_values, pdf_values
+\end{lstlisting}
+
+\subsubsection{Generating 10,000 Galaxies}
+
+Once we have calculated the CDF we can proceed to randomly sampling from our distributions to generate 10,000 galaxies. This function has been hard coded to work specifically for the radius problem, this isn't difficult to make data driven I just don't have time. Essentially, we initialize our parameters.
+We then loop through the range of 10,000 values and generate a random number from 0 to 1 for r, $\phi$, and $\theta$. Starting with r, we cycle through the CDF until we find a value that is greater than our random number. Once we have found one we interpolate an X value (synonomous with r) from the neighboring larger point to the previous smallest point of the CDF. This is done by getting a weighted linear approximation of the x value between the two. Once an r value is found we break the current loop and continue with finding our $\phi$ which is uniform from $0-2\pi$.
+We then find $\theta$, which is follows the relationship of $\theta = arccos(1-2u)$ where u is our uniform randomly generated value.
+
+We can then append these values to an array and once the outer loop is done, we can return the array.
+
+\begin{lstlisting}[language=Python]
+def generate_new_points(r_cdf, num_of_points):
+	points = []
+	# need to approximate a continuous distribution for CDF so need to match the amount of points in the CDF
+	x_list = np.linspace(0, 5, 10000)
+	# don't need this variable so _
+	for _ in range(num_of_points):
+		# Need to do something hacky here for calculating a random R because the CDF is full of discrete values so have
+		# to make the CDF somehow continuous.
+		u = random_number_generator(0, 1)
+		# find the first value that is larger than our uniform number
+		for i in range(1, len(r_cdf)):
+
+			if r_cdf[i] >= u: # the random number is between cdf_values[i-1] and cdf_values[i]
+				# Interpolate a value between the lower CDF value and the found CDF value and return this as the number
+				# radius is essentially along the x_axis so need to find it interms of x_list
+				# forgot what this does
+				# https://en.wikipedia.org/wiki/Inverse_transform_sampling
+
+				# r = last x value + (why?? u - r_cdf) ahh right need to get the distance of u - rcdf
+				# div by the distance of cdf i - i+1 and then multiply by step distance
+				r = x_list[i-1] + (u - r_cdf[i-1]) / (r_cdf[i] - r_cdf[i-1]) * (x_list[i] - x_list[i-1])
+				break
+
+
+		# ripped straight from tutorial work
+		# better approach to stop the centering around the poles
+		# calculate new random numbers
+		phi = 2 * np.pi * random_number_generator(0, 1)
+		theta = np.arccos(1 - 2 * random_number_generator(0, 1))
+		points.append([r, theta, phi])
+
+	return points
+\end{lstlisting}
+
+\subsubsection{Random Number Generator}
+The key component from the previous function is the \texttt{random\_number\_generator} function, so we will focus on that in detail. The goal was to implement a hybrid random number generator by combining multiple techniques: two separate \textbf{Linear Congruential Generators (LCGs)} feeding into two \textbf{64-bit XOR generators}, which are then combined into a \textbf{Multiply-With-Carry (MWC) generator}.
+
+Each sub-generator must maintain its own state, so I set the states as global variables to ensure they persist across function calls. Initially, these states are set to \texttt{None}, allowing them to be assigned a seed value later.
+
+For the seed values, I chose arbitrary "random" numbers without applying a specific selection method. These seed values are assigned only once and remain unchanged throughout execution.
+
+\subsubsection*{Linear Congruential Generators (LCGs)}
+For the two LCGs, I needed to define the parameters $a$ and $b$. Following the same approach as with the seeds, I selected these values arbitrarily. Additionally, I set $m$ (the modulus) to \textbf{64 bits}, which defines the upper limit for the generated numbers.
+
+However, since the state values are also \textbf{64-bit integers}, this configuration causes inherent \textbf{overflow issues} due to nonzero, positive parameters. As a result, the LCGs naturally loop back on themselves. I initially suspected that this might cause a bias toward lower values, but after benchmarking against a \textbf{32-bit modulus}, I observed that the LCGs still produced a uniform distribution and did not noticeably affect the results.
+
+\subsubsection*{64-bit XOR Generators and Multiply-With-Carry (MWC)}
+Next, I set the parameters for the \textbf{64-bit XOR generators}, using well-tested values from \cite{marsaglia2003xorshift}. Additionally, I chose a prime number for the MWC generator, as it is preferable for ensuring randomness quality.
+
+Once the setup was complete, I performed the \textbf{XOR operations} on the states for the \textbf{64-bit XOR generators}. After generating four random numbers from the sub-generators, I applied XOR operations to two pairs of them. The resulting values were then passed into the \textbf{MWC generator}, which produced the final random number.
+
+\subsubsection*{Normalization of the Output}
+To scale the generated number within a specified range $[\text{low}, \text{high}]$, I normalized the MWC output by dividing it by $2^{64}$, effectively converting it into a fraction between 0 and 1. This fraction was then scaled to the desired range using:
+
+\begin{equation}
+\text{random value} = \left( \frac{\text{MWC output}}{2^{64}} \right) \times (\text{high} - \text{low}) + \text{low}
+\end{equation}
+
+This ensures that the final output is uniformly distributed within the requested range.
+
+\begin{lstlisting}[language=Python]
+# setting states of RNGs
+state_1 = None
+state_2 = None
+state_3 = None
+state_4 = None
+def random_number_generator(low,high):
+	# I want to make a LCG - >64XOR + 64XOR - >MWC
+	# I think to store the state I need to run all of them in the same function
+	# nope just need global calls
+	global state_1, state_2, state_3, state_4
+
+	# not sure if this is the correct way of seeding, but I essentially just slapped my numpad
+	seed_1 = np.uint64(8750754)
+	seed_2 = np.uint64(9870261123)
+	seed_3 = np.uint64(1289379550421)
+	seed_4 = np.uint64(930281)
+
+	# I need to comment this because I don't remember what these are for
+	# Setting a and b parameters of LCGS (1 & 3)
+	a = np.uint64(875)
+	a_4 = np.uint64(210323)
+	b = np.uint64(7644)
+	b_1 = np.uint64(921203236)
+
+	# setting modulo of LCGs (1 & 3)
+	m = np.uint64((2 ** 64) - 1)
+
+	# initially setting the states of the RNGs
+	if state_1 is None:
+		state_1 = seed_1
+	if state_2 is None:
+		state_2 = seed_2
+	if state_3 is None:
+		state_3 = seed_3
+	if state_4 is None:
+		state_4 = seed_4
+
+	# seems I need to go with ()%m
+	# https: // github.com / rossilor95 / lcg - python / blob / main / lcg.py
+	# https: // stackoverflow.com / questions / 19140589 / linear - congruential - generator - in - python
+	# ()%m gives values lower than m
+	# + ()%m gives values higher than m sometimes (this is what the lecture suggests)
+
+	# this inherently gives an overflow error because state 1 is a 64 bit int
+	state_1 = (a * state_1 + b)%m
+	state_3 = (a_4 * state_3 + b_1)%m
+
+	# 64 BIT XOR first set parameters
+	a_1 = 21
+	a_2 = 35
+	a_3 = 4
+
+	# Marsaglia, G. (2003). Xorshift RNGs. Journal of Statistical Software, 8(14), 1–6. https: // doi.org / 10.18637 / jss.v008.i14
+	# 64 BIT XOR second set parameters
+	a_5 = 12
+	a_6 = 25
+	a_7 = 27
+
+	# best if this number is a prime
+	# for MWC
+	a_8 = 4294957679
+
+	# 64 bit xor
+
+	# from lectures, think this is right but not sure how to keep it within 2 ** 64 - 1
+	# do I plug the initial value from the LCG in here?
+	state_2 ^= (state_2>>a_1)
+	state_2 ^= (state_2<<a_2)
+	state_2 ^= (state_2>>a_3)
+
+	state_4 ^= (state_4>>a_5)
+	state_4 ^= (state_4 << a_6)
+	state_4 ^= (state_4 >> a_7)
+
+	LCG_64BitXOR_1 = state_2^state_1
+	LCG_64BitXOR_2 = state_4^state_3
+
+	added = LCG_64BitXOR_1 ^ LCG_64BitXOR_2
+
+	MWC = a_8 * (added&(2 ** 32 - 1)) + (added>>32)
+
+	# how do I scale this? % of high - low + 1 returns the value to add to lower giving the correct range
+	# this also didn't work...
+	# I don't know why this didn't work but the current version did.......
+	# rand_val = low + int((high - low) * (LCG_64BitXOR / (2 ** 64 - 1)))
+	# RNG is fine its just the normalization.... modulo creates a bias apparently
+	# Modulo bad, bad modulo
+
+	rand_val = low + (MWC / (2 ** 64)) * (high - low)
+
+	# Can produce a uniform random distribution but when we try to normalize it, it breaks
+	# Think this is no longer the case
+	return rand_val
+\end{lstlisting}
+
+\subsubsection*{Plotting the Histogram and Analytical Functions}
+Returning to the main function, we pass the newly generated points to the \texttt{plot\_histogram\_and\_analytic} function. The purpose of this function is to visualize the distribution of the generated points and compare it to the expected analytical function.
+
+First, we extract the radial values, $r$, from the generated points. These values are then used to create evenly spaced bins in logarithmic space. Next, we sort the $r$ values into these bins and normalize them using the \texttt{np.histogram} function with \texttt{density=True}, ensuring the histogram represents a probability density function.
+
+To facilitate comparison, we compute the corresponding analytical function and apply the appropriate normalization factor. Finally, we plot both the histogram and the analytical function on the same graph, allowing for a direct visual comparison between the numerical and analytical results.
+
+\begin{lstlisting}[language=Python]
+def plot_histogram_and_analytic(cdf, pdf, points_in_spherical, a, b, c, N_sat, A):
+	# man what even is happening here, I can't get the histogram to match the analytical solution
+
+	# Extract sampled radii
+	# aparently numpy slicing is the fastest so should probably learn more about that
+	r_sampled = np.array([point[0] for point in points_in_spherical])
+
+	# Define logarithmic bins between 10^ - 4 and xmax (5)
+	bins = np.logspace( -4, np.log10(5), 20)
+
+	# Compute histogram (density = False would be for manual normalization which doesn't seem to work)
+	# https://numpy.org/doc/2.1/reference/generated/numpy.histogram.html
+	hist, bin_edges = np.histogram(r_sampled, bins = bins, density = True)
+
+	bin_widths = np.diff(bin_edges)
+	hist_normalized = hist * bin_widths
+
+	# Compute analytical function N(x) over the same bins
+	x_values = np.logspace( -4, np.log10(5), 1000)
+	N_x = np.array([q1_eq1(a, b, c, N_sat, x, A) * x ** 2 * 2 * np.pi for x in x_values])
+
+	# Apply normalization offset: 10,000 / <N_sat >= 100
+	N_x /= 100
+
+	# Histogram
+	xmin, xmax = 10 ** - 4, 5
+	ymin,ymax = 10 ** ( - 3), 10
+	plt.figure(figsize = (8, 6))
+	plt.bar(bin_edges[:-1], hist_normalized, width = bin_widths, color = 'b', alpha = 0.6, label = "Sampled Histogram",
+			align = 'edge')
+
+	# Plot analytical function (N(x)) as a line
+	plt.loglog(x_values, N_x, 'r-', label = "Analytical $N(x)$")
+
+	# Graph settings
+	plt.xlabel("Radius $x$")
+	plt.ylabel("$N(x)$ (normalized)")
+	plt.title("Log - Log Histogram of Sampled Points vs Analytical Function")
+	plt.legend()
+	plt.grid(True, which = "both", linestyle = "--", alpha = 0.5)
+	plt.xlim(xmin, xmax)
+	plt.ylim(ymin, ymax)
+	plt.savefig("Histogram_vs_analytical.png")
+\end{lstlisting}
+
+\subsubsection{Bonus}
+I decided I wanted to see the distribution of the galaxies in 3D so I passed the points in spherical co-ordinates to the spherical\_to\_cartesian function which is rather simple and then pass these new cartesian points to the plotting function.
+
+\begin{lstlisting}[language=Python]
+def spherical_to_cartesian(r, theta, phi, center_point):
+	# this is pretty simple
+	x = np.float32(r * np.cos(phi) * np.sin(theta) + center_point[0])
+	y = np.float32(r * np.sin(phi) * np.sin(theta) + center_point[1])
+	z = np.float32(r * np.cos(theta) + center_point[2])
+	return np.array([x, y, z])
+\end{lstlisting}
+
+with in the plotting function I create a 3d plot using add\_subplot with projection = "3d" and set the box aspect to be 1 unit in each axis so that the plot doesn't look oblate.
+
+\begin{lstlisting}[language=Python]
+def plotting(xxx,new_points_array):
+	# Convert list to numpy array for easy slicing
+	new_points_array = np.array(new_points_array)
+	# I think I prefer doing these things on one line, makes it look cleaner should start incorporating it from the start
+	x, y, z = new_points_array[:, 0], new_points_array[:, 1], new_points_array[:, 2]
+
+	# Plot in 3D
+	#max value 0.4
+	fig = plt.figure(figsize = (8, 8))
+	ax = fig.add_subplot(111, projection = '3d')
+	ax.scatter(x, y, z, c = 'b', alpha = 0.6)
+
+	# Labels
+	ax.set_xlabel("X - axis")
+	ax.set_ylabel("Y - axis")
+	ax.set_zlabel("Z - axis")
+	ax.set_title("3D Scatter Plot of Randomly Generated Points")
+	ax.set_box_aspect([1, 1, 1])
+	plt.savefig("3D_graph.png")
+
+	# Need to save the plots
+\end{lstlisting}
+
+\subsection*{Q1 c): Sorting the Galaxies by Radius}
+
+The main objective of part c) was to select 100 random satellite galaxies generated in b) by sampling from the generated distribution evenly, without drawing the same galaxy twice and without rejecting any draws. Then sorting the 100 drawn galaxies by radius and plotting the result.
+
+I thought about this for a bit and decided that creating an RNG for this particular question was possible but not worth the effort, so I decided to make a hack for it that satisfied all three criteria.
+
+I began by generating a list of indices for the data set, then stepped backwards through the list while shuffling as I looped. This randomized the list of indices satisfying the first criteria, I then selected the first 100 indices which satisfied the other two criteria. I then created a new array to store the selected galaxies and passed this array on to my sorting algorithm.
+
+\begin{lstlisting}[language=Python]
+def question_1():
+	#part C
+	#make a list of indices
+	# This selects each galaxy with equal probability, does not draw the same galaxy twice, and does not reject any draws.
+	indices = list(range(number_of_points))
+	#step backward through indices
+	for i in range(number_of_points-1, 0,-1):
+		#pick a random number between 0 and i as we count down
+		#could just calculate j between 0 and number of points
+		j = int(random_number_generator(0, i + 1))
+		#swap i and j to shuffle the indices
+		indices[i], indices[j] = indices[j], indices[i]
+	#get the first 100 galaxies
+	indices = indices[:100]
+
+	# Select the 100 galaxies
+	array_of_galaxies = np.array([points_in_spherical[index] for index in indices])
+	sorted = np.array(merge_sort(array_of_galaxies,0))
+
+	plotting(sorted,xxx)
+\end{lstlisting}
+\subsubsection{Sorting}
+
+The merge\_sort function iteratively splits the arrays into single cells, then once the single cells have been generated, they are passed onto the merge function.
+
+\begin{lstlisting}[language=Python]
+def merge_sort(arr, column_to_sort):
+	if len(arr) <= 1:
+		# cells have been split into singles, return the cell
+		return arr
+
+	# iteratively split the array in two until one cell is left
+	mid = len(arr) // 2
+	left_half = merge_sort(arr[:mid], column_to_sort)
+	right_half = merge_sort(arr[mid:], column_to_sort)
+
+	# once all cells have been split merge them
+	return merge(left_half, right_half, column_to_sort)
+\end{lstlisting}
+
+The merge function takes the arrays passed on from the previous function, and sorts based on lowest value until the while loop is unsatisfied. It starts by checking if the current value in the left array is smaller than the current value in the right array, and if so it appends it to the sorted list. If this condition is not satisfied then it appends the right value. Once a value has been appended the appropriate counter is increased. Should anything be left when the while loop has been exited then the remaining value is appended as this will have been sorted.
+
+\begin{lstlisting}[language=Python]
+# Does what it says on the tin init
+def merge(left, right, column_to_sort):
+	# Init
+	sorted_arr = []
+	i = j = 0
+
+	# Merge two sorted halves
+	# Use while loop
+	while i < len(left) and j < len(right):
+		# if left < right append left then restart loop increase i
+		if left[i][column_to_sort] <= right[j][column_to_sort]:
+			sorted_arr.append(left[i])
+			i += 1
+		# If right < left append right then restart loop increase j
+		else:
+			sorted_arr.append(right[j])
+			j += 1
+
+	# Append remaining elements from both halves
+	# If theres anything left in the arrays it should be sorted as it would be the final item
+	sorted_arr.extend(left[i:])
+	sorted_arr.extend(right[j:])
+
+	return sorted_arr
+\end{lstlisting}
+
+\subsubsection{Plotting}
+Now that we have our sorted values we return to main function where we send the sorted array to the plotting function. This essentially just plots the number of galaxies below a certain radius.
+
+\begin{lstlisting}[language=Python]
+def plotting(sorted,xxx):
+	radii = [r[0] for r in sorted]
+	#need to get the number of galaxies for a given (sorted) radius
+	counts = np.arange(1, len(radii) + 1)
+
+	plt.figure(figsize = (8, 6))
+	plt.plot(radii, counts, 'b-')
+	plt.xscale("log")
+	plt.xlabel("Radius (log scale)")
+	plt.ylabel("Number of Galaxies")
+	plt.title("Cumulative Count of Galaxies vs. Radius")
+	plt.grid(True, which = "both", linestyle = "--", alpha = 0.5)
+	plt.xlim(10 ** - 4, np.log10(5))
+	plt.savefig("Number_galaxies_radius.png")
+
+	# Need to save the plots
+\end{lstlisting}
+
+\subsection{Q1 d): Calculating the Derivative}
+The main objective of d) is to numerically calculate the derivative of $n(x)$ at $x=1$ and compare this to the analytical result to at least 12 significant figures. We have to first return to the main function. We call Riddler's method for our numerical calculation and then compare this to our analytical function.
+
+\begin{lstlisting}[language=Python]
+def question_1():
+	# Part D
+	anal = analytical_solution(1)
+	# This is tuned to get the right anwser for this problem but is not robust as I haven't tested it extensively
+	numerical = riddlers_method(1, 10 **-5, 15, 10 **-9)
+	print(f"Analtical result: {anal} \nNumerical result is {numerical}")
+
+	with open("Analytical_sol.txt","w") as file:
+		file.write(str(anal))
+	file.close()
+
+	with open("Numerical_sol.txt","w") as file:
+		file.write(str(numerical))
+	file.close()
+\end{lstlisting}
+
+\subsubsection{Riddler's Method}
+We've passed our parameters to Riddler's method, we start by initializing the matrix for storing the estimations. We then calculate the inital estimates in the first column by calling the central difference function and decreasing h as we go.
+We then make more guesses based on the previous estimates, similar to Romberg method implemented earlier.
+We also make a check for convergence to a tolerance value and if this is reached we exit with the top row last column value. otherwise we exit with the last value.
+
+\begin{lstlisting}[language=Python]
+def riddlers_method(x, h, m_num,tolerance):
+	# ripped from previous tutorial
+	# Init matrix
+	diff_vals = np.zeros((m_num, m_num))
+
+	# calculate initial colum with decreasing h
+	for m in range(m_num):
+		h = h * 1 / (2 ** m)
+		diff_vals[m][0] = central_difference(x, h)
+
+	# Go iteratively go through the rest of the matrix recalculating the diff value to obtain a better result
+	for j in range(1, m_num):
+		for i in range(0, m_num - j):
+			diff_vals[i][j] = ((2 ** (2 * j)) * diff_vals[i + 1][j-1] - diff_vals[i][j-1]) / (2 ** (2 * j)-1)
+		# Check for Convergence
+		if abs(diff_vals[0, j] - diff_vals[0, j-1]) < tolerance:
+			# This is just a randomly set tolerance but I did a bit of trial and error to decide on a value
+			# but break if converging, Here is why I'm unsure of the integral analog being row-1,col
+			return diff_vals[0, j]
+	# Return last cell if succesfully made it out alive
+	return diff_vals[0,-1]
+\end{lstlisting}
+
+Diving into the central difference method we just get the difference between two h steps divided by the distance and return the value.
+
+\begin{lstlisting}[language=Python]
+def central_difference(x, h):
+	# Ripped from previous tutorial
+	a = 2.4
+	b = 0.25
+	c = 1.6
+	x_max = 5
+	N_sat = 100
+	# central diff
+	y = (q1_eq1(a,b,c,N_sat,x + h,A) - q1_eq1(a,b,c,N_sat,x - h,A)) / (2 * h)
+	return y
+\end{lstlisting}
+
+The get the analytical function I used the link shown in the bibliography shown in \cite{}
+I also bench marked this against an existing derivative library in scipy.
+
+\begin{lstlisting}[language=Python]
+def analytical_solution(x):
+	a = 2.4
+	b = 0.25
+	B=1/b
+	c = 1.6
+	N_sat = 100
+	# https://www.derivative-calculator.net/
+	# Don't think this is right
+	dn_dx = - A * N_sat * (x * B) ** (a) * (c * ( B * x)**c -a+3) * np.exp( - (x * B) ** c) * (1/(B**3 * x**4))
+	# this one works.... had an extra B term
+	dn_dx_calced = A*N_sat*(1/b)*(x/b)**(a-4)*np.exp(-(x/b)**c)*((a-3)-c*(x/b)**c)
+
+	return dn_dx
+\end{lstlisting}
+
+\subsection{Q2 a and b): Root Finding}
+The main objective of 2 a) is to find the root of the equation for which T would be the equilibrium temperature. I'm dumb I was looking at the minimum not the roots....
+
+We start question 2 off by calling a master function where we set parameters based on the question. We then pass our function and parameters through to the bisection method
+
+\begin{lstlisting}[language=Python]
+def question_2():
+	#I'm so dumb, I was looking for the minimum the whole time because I started with the wrong brents method....w
+	# brents method?
+	Z = 0.015
+	Tc = 10 ** 4
+	psi = 0.929
+	A_1 = 5 * 10 ** - 10
+	nH = [10 ** - 4,1,10 ** 4]
+	xi = 10 ** - 15
+
+	root = bisect(lambda T: equilibrium1(T,Z,Tc,psi), 1, 10**7)
+
+	print(f"Root found: {root}")
+
+	root = bisection_method(lambda T: equilibrium1(T,Z,Tc,psi), 1,10 **7,10**-10,10000)
+	print(root)
+	root = bisection_method(lambda T: equilibrium2(T, Z, Tc, psi,10 ** - 4,A_1,xi), 1, 10 ** 15,10**-6,10000)
+	print(root)
+	root = bisection_method(lambda T: equilibrium2(T, Z, Tc, psi, 1, A_1, xi), 1, 10 ** 15, 10 ** -6, 100)
+	print(root)
+	root = bisection_method(lambda T: equilibrium2(T, Z, Tc, psi, 10 **4, A_1, xi), 1, 10 ** 15, 10 ** -6, 100)
+	print(root)
+	#I think I'm finding local minima
+	#I give up I'm going to start the report instead
+\end{lstlisting}
+
+\begin{lstlisting}[language=Python]
+# here no need for nH nor ne as they cancel out
+# I think I need to find the roots of this equation to find the equilibrium temperature
+def equilibrium1(T,Z,Tc,psi):
+	return psi * Tc * k - (0.684 - 0.0416 * np.log(T / (1e4 * Z * Z))) * T * k
+
+\end{lstlisting}
+
+I had to rush this through but I just calculate the mid point between a bracket, if the values either side are negative I update the bracket so that the mid point becomes the new bracket. This is probably super slow and likely to get stuck on a hinging point or have errors but it works right now.
+
+\begin{lstlisting}[language=Python]
+def bisection_method(f, a, b, max_iter):
+	steps = 0
+	for i in range(max_iter):
+		steps +=1
+		if abs(a-b) < 10**-6:
+			return (a+b)/2, steps
+		c = (a + b) /2
+		f_c = f(c)
+		if f(a) * f_c < 0:
+			b = c
+		else:
+			a = c
+	return (a + b) / 2, steps
+\end{lstlisting}
+
+This process is the same for equation 2 but there are more parameters.
+
+\begin{lstlisting}[language=Python]
+def equilibrium2(T,Z,Tc,psi, nH, A, xi):
+	return (psi * Tc - (0.684 - 0.0416 * np.log(T / (1e4 * Z * Z))) * T - .54 * ( T / 1e4 ) ** .37 * T) * k * nH * aB + A * xi + 8.9e-26 * (T / 1e4)
+
+\end{lstlisting}
+
+\subsubsection{Bonus}
+
+I got tunnel vision and implemented the wrong brents method initially and then thought I had to find the minimum, the golden search method worked better at finding the minimum
+
+\begin{lstlisting}[language=Python]
+def golden_section_search(function_1,a,b,tol):
+	# I implemented brents method initially but thought I was wrong because I forgot to break the loop
+	# Spent so much time on this so went for the conceptually simpler method
+	# this doesn't work for 10 ** - 4 so need to switch back
+	golden_ratio = 1.61803398875
+	# Set initial points, get x and y
+	# told that for an initial guess I'm supposed to take the midpoint which pushes guess to edge (b)
+	x1 = (b - a)/2
+	x2 = (b - a)/2
+	f1, f2 = function_1(x1), function_1(x2)
+	#start counter for number of iterations
+	steps = 0
+	max_iterations = 1000
+	# Again no real logic behind the tolerance here just picked a value
+	while abs(b - a) > tol and steps < max_iterations:
+		steps += 1
+		# If f(x1) is better, keep [a, x2]
+		if f1 < f2:
+			# Bookkeeping to update brackets
+			b, x2, f2 = x2, x1, f1
+			# Recalculate x1 and f1 as not kept
+			x1 = b - (b - a) * (2-golden_ratio)
+			f1 = function_1(x1)
+		# If f(x2) is better, keep [x1, b]
+		else:
+			# Same deal, bookkeeping and set x2 and f2
+			a, x1, f1 = x1, x2, f2
+			x2 = a + (b - a) * (2-golden_ratio)
+			f2 = function_1(x2)
+	# Checked this against scipy minimize_scalar
+	# Return the minimum point
+	return (a + b) / 2 , steps # Midpoint of final interval
+\end{lstlisting}
+
+\begin{lstlisting}[language=Python]
+# I give up
+def find_minima_brents(function_1,low,high,tolerance):
+	golden_ratio = 1.618
+	a, c = low, high
+	b=a+(2-golden_ratio)*(c-a)
+	v, w, x = b, b, b
+	fx=function_1(x)
+	fv, fw = fx, fx
+	fractional_error_2 = 2 ** (-53)
+	d = 0
+	#issue can arise if d_bot is 0 so would need to switch to Golden ratio
+	d_bot=2*(((b-a)*(function_1(b)-function_1(c)))-((b-c)*(function_1(b)-function_1(a))))
+	d=b-((((b-a)**2)*(function_1(b)-function_1(c)))-(((b-c)**2)*(function_1(b)-function_1(a))))*d_bot
+
+	# placeholder while I work on this
+	steps=0
+	while abs(c-a) ** 2 > 4*abs(b)**2*tolerance**2 and steps < 1000:
+		steps+=1
+		if (d > a) and (d < c) and ((d-b) < v):
+			biggest = -float('inf')
+			for num in [a,b,c,d]:
+				if num > biggest:
+					biggest = num
+			if biggest == a:
+				a=b
+			elif biggest == c:
+				c=b
+
+			b=d
+			v=w
+
+
+			smallest = float('inf')
+			second_smallest = float('inf')
+
+
+			for num in [a,b,c,d]:
+				if num < smallest:
+					smallest = num
+
+
+			for num in [a,b,c,d]:
+				if smallest < num < second_smallest:
+					second_smallest = num
+			w=second_smallest
+			fb=function_1(b)
+			fc=function_1(c)
+			fa=function_1(a)
+			d_bot = 2 * ((b - a) * (fb - fc) - (b - c) * (fb - fa))
+			d = b - (b - a) ** 2 * (fb - fc) - (b - c) ** 2 * (fb - fa) * d_bot
+
+
+		else:
+			biggest = -float('inf')
+			for num in [a, b, c, d]:
+				if num > biggest:
+					biggest = num
+			if biggest == a:
+				a = b
+			elif biggest == c:
+				c = b
+			v=w
+
+			for num in [a, b, c, d]:
+				if num < smallest:
+					smallest = num
+
+
+			for num in [a, b, c, d]:
+				if smallest < num < second_smallest:  second_smallest
+					second_smallest = num
+			w = second_smallest
+
+			d=a+golden_ratio*(c-a)
+			b=d
+	root = b
+	return root, steps
+\end{lstlisting}
+
+\newpage
+\section{results}
+
+\subsection{Q1}
+
+The result of Q1, a) was that: \newline
+A is equal to
+\input{A.txt}
+\newline
+As mentioned in the methodology this was bench marked against numerous other students, and so I believe this is the right answer, When I checked for other values of A by manually setting the parameter the results I received seemed to be incorrect.
+
+Regarding what is the physical meaning behind A, I believe A is just a scaling parameter and may just be related to the distances between galaxies.
+
+The result of Q1, b) was that: \newline
+
+The histogram does not match the analytical solution exactly as was to be expected but falls short, the shape is roughly the same and so follows the distribution but we are missing the upper and lower bounds of the radius and I think this is to do with how the radius is calculated, upon looking at the 3D plot of the distribution of galaxies it can be seen that none are at large r values or above abs(0.4) for that matter, this is rather odd as I would have expected some to have been further out. I think the issue lies with my calculation of the CDF and perhaps I should have taken a different route in sampling the r values. So in turn I think this negatively effects the rest of this question. I spent much time debugging the r sampling but perhaps I should have just taken a different approach all together
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Histogram_vs_analytical.png}
+        \caption{Histogram vs Analytical result}
+        \label{fig:hist_vs_anal}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{3D_graph.png}
+        \caption{3D plot of distributions}
+        \label{fig:3D}
+    \end{minipage}
+\end{figure}
+
+The result of Q1. c) was that: \newline
+The selection of 100 random targets followed all the criteria proposed, no galaxy is drawn twice, every galaxy has an equal probability of being selected and no draws are rejected. Following this, the distribution of the counts of galaxies below a certain radius appear to follow the CDF, this may be expected as the CDF is just the cumulative distribution of galaxies for a given radius.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Number_galaxies_radius.png} % Replace with your image filename
+    \caption{Sorted Galaxies}
+    \label{fig:sorted_galaxies}
+\end{figure}
+
+The result of Q1. d) was that: \newline
+The Numerical derivative of the function at x=1 is approximately the same as that of the analytical function for x=1.
+The result of the Numerical calculation being \input{Numerical_sol.txt} and the result of the analytical calculation being \input{Analytical_sol.txt}. These are the same up until the 8th significant figure.
+
+\subsection{Q2}
+The result of Q2. a) was that: \newline
+The root of equation \ref{} was \input{root_1.txt} with \input{step_1.txt} iterations. Benchmarking this against brentq showed the same result.
+
+The result of Q2. b) was that: \newline
+The root of equation \ref{} was\newline
+\input{root_2.txt} for $n_e$ = $10^{-4}$ with \input{step_2.txt} iterations,
+\newline
+\input{root_3.txt} for $n_e$ = $1$ with \input{step_3.txt} iterations,
+\newline
+\input{root_4.txt} for $n_e$ = $10^{4}$ with \input{step_4.txt} iterations,
+
+\section{conclusions}
+
+\bibliography{references}
+
+\end{document}
