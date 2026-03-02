@@ -1,6 +1,5 @@
 import numpy as np
 import time
-import math
 import os
 
 import pandas as pd
@@ -12,17 +11,12 @@ from functions import linear_algebra as la
 
 import matplotlib.pyplot as plt
 
-from functions.linear_algebra import forward_sub, backward_sub
-
-
 # get the folder where the script is located
 script_dir = os.path.dirname(__file__)
 data_dir = os.path.join(script_dir, "../data")
 plots_dir = os.path.join(script_dir, "../plots")
 
 os.makedirs(plots_dir, exist_ok=True)  # just in case
-
-
 
 def import_data():
     current_dir = Path(__file__).resolve().parent
