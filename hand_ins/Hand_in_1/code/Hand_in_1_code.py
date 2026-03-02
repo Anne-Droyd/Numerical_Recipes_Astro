@@ -71,11 +71,11 @@ def question_1() -> pd.DataFrame:
         result = math_functions.poisson_distribution(lam,k)
         results.append([lam,k,result])
     results = pd.DataFrame(results,columns=['lambda','k','Poisson result'])
-    results.to_csv(os.path.join(data_dir, 'poisson.csv'))
-    latex = results.to_latex(index=False,escape=False,column_format='|c|c|c|',
-                             header = True, caption = 'Poisson Results', label = 'tab:poisson')
-    with open(os.path.join(data_dir, 'poisson.tex'),'w') as f:
-        f.write(latex)
+    results['Poisson result'] = results['Poisson result'].apply(lambda x: f"{x:.6e}")
+    results['lambda'] = results['lambda'].apply(lambda x: f"{x:.2}")
+    with open(os.path.join(data_dir,"poisson.txt"), "w") as f:
+        for _, row in results.iterrows():
+            f.write(f"{row['lambda']} & {row['k']} & {row['Poisson result']} \\\\\n")
     return results
 
 def question_2() -> tuple[pd.DataFrame]:
@@ -150,12 +150,12 @@ def question_2() -> tuple[pd.DataFrame]:
     # plotting
     fig, axes = plt.subplots(2,1)
     axes = axes.flatten()
-    axes[0].scatter(x_points,yyy, marker = 'o', alpha = 0.4, label = '10th')
+    axes[0].scatter(x_points,yyy, marker = '*', alpha = 0.4, label = '10th')
     axes[0].scatter(x_points,ys, marker = '^', alpha = 0.4, label = '1st')
-    axes[0].scatter(x_points,linear, marker = 'o', alpha = 0.4, label = 'linear')
-    axes[0].scatter(x_points,nevilles, marker = '^', alpha = 0.4, label = 'nevilles')
-    axes[0].scatter(x_points,lagrange, marker = 'o', alpha = 0.2, label = 'lagrange')
-    axes[0].set_ylim(-200,200)
+    axes[0].plot(x_points,linear, linestyle = '--', alpha = 0.4, label = 'linear')
+    axes[0].scatter(x_points,nevilles, marker = 'o', alpha = 0.4, label = 'nevilles')
+    axes[0].scatter(x_points,lagrange, marker = 'x', alpha = 0.2, label = 'lagrange')
+    axes[0].set_yscale('log')
     axes[0].set_title('Interpolated values')
     axes[0].scatter(x,y,label = 'true values')
     axes[0].legend()
