@@ -15,4 +15,4 @@ python3 hand_ins/Hand_in_1/code/Hand_in_1_code.py
 
 echo "Generating the pdf"
 cd hand_ins/Hand_in_1/code
-pdflatex Hand_in_1_pdf.tex
+pdflatex -output-directory=../../../ Hand_in_1_pdf.tex
